@@ -1,0 +1,149 @@
+# DNSManage - Plugin GLPI
+# Traductions françaises
+msgid ""
+msgstr ""
+"Project-Id-Version: DNSManage 1.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"Language: fr_FR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Compte DNS"
+msgstr "Compte DNS"
+
+msgid "Comptes DNS"
+msgstr "Comptes DNS"
+
+msgid "Comptes provider"
+msgstr "Comptes provider"
+
+msgid "Journaux de synchronisation"
+msgstr "Journaux de synchronisation"
+
+msgid "Journal de sync"
+msgstr "Journal de sync"
+
+msgid "Journaux de sync"
+msgstr "Journaux de sync"
+
+msgid "Nouveau compte DNS"
+msgstr "Nouveau compte DNS"
+
+msgid "Nouveau compte DNS provider"
+msgstr "Nouveau compte DNS provider"
+
+msgid "Informations générales"
+msgstr "Informations générales"
+
+msgid "Nom du compte"
+msgstr "Nom du compte"
+
+msgid "Provider"
+msgstr "Provider"
+
+msgid "Endpoint / Région"
+msgstr "Endpoint / Région"
+
+msgid "Commentaire"
+msgstr "Commentaire"
+
+msgid "Compte actif"
+msgstr "Compte actif"
+
+msgid "Authentification"
+msgstr "Authentification"
+
+msgid "Enregistrer"
+msgstr "Enregistrer"
+
+msgid "Annuler"
+msgstr "Annuler"
+
+msgid "Tester la connexion"
+msgstr "Tester la connexion"
+
+msgid "Supprimer"
+msgstr "Supprimer"
+
+msgid "Supprimer ce compte ?"
+msgstr "Supprimer ce compte ?"
+
+msgid "Compte mis à jour avec succès."
+msgstr "Compte mis à jour avec succès."
+
+msgid "Compte créé avec succès."
+msgstr "Compte créé avec succès."
+
+msgid "Compte supprimé."
+msgstr "Compte supprimé."
+
+msgid "Ajouter un compte"
+msgstr "Ajouter un compte"
+
+msgid "Gérer les comptes"
+msgstr "Gérer les comptes"
+
+msgid "Comptes DNS provider"
+msgstr "Comptes DNS provider"
+
+msgid "Aucun compte DNS configuré. Commencez par ajouter un compte provider."
+msgstr "Aucun compte DNS configuré. Commencez par ajouter un compte provider."
+
+msgid "Nom"
+msgstr "Nom"
+
+msgid "Dernière sync"
+msgstr "Dernière sync"
+
+msgid "Statut"
+msgstr "Statut"
+
+msgid "Actions"
+msgstr "Actions"
+
+msgid "Jamais"
+msgstr "Jamais"
+
+msgid "Actif"
+msgstr "Actif"
+
+msgid "Inactif"
+msgstr "Inactif"
+
+msgid "Synchroniser maintenant"
+msgstr "Synchroniser maintenant"
+
+msgid "Modifier"
+msgstr "Modifier"
+
+msgid "Chargement des champs..."
+msgstr "Chargement des champs..."
+
+msgid "Aucune synchronisation enregistrée."
+msgstr "Aucune synchronisation enregistrée."
+
+msgid "Compte"
+msgstr "Compte"
+
+msgid "Démarré"
+msgstr "Démarré"
+
+msgid "Durée"
+msgstr "Durée"
+
+msgid "Domaines"
+msgstr "Domaines"
+
+msgid "Enregistrements"
+msgstr "Enregistrements"
+
+msgid "Erreurs"
+msgstr "Erreurs"
+
+msgid "Voir"
+msgstr "Voir"
+
+msgid "Synchronisation automatique de tous les comptes DNS actifs"
+msgstr "Synchronisation automatique de tous les comptes DNS actifs"
