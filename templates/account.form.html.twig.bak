@@ -1,0 +1,78 @@
+{% extends "generic_show_form.html.twig" %}
+{% import "components/form/fields_macros.html.twig" as fields %}
+
+{% block more_fields %}
+
+    {# Injection des données pour le JS externe (public/account.form.js) #}
+    <script>
+    window.dnsmanagerData = {
+        allProviderData:     {{ allProviderData|raw }},
+        existingCredentials: {{ credentials|raw }},
+        currentEndpoint:     '{{ currentEndpoint }}',
+        accountId:           {{ item.fields['id'] ?? 0 }}
+    };
+    </script>
+
+    {{ fields.smallTitle(__('Informations générales', 'dnsmanager')) }}
+
+    {# Provider #}
+    <div class="mb-3 row">
+        <label class="col-xxl-4 col-form-label">{{ __('Provider', 'dnsmanager') }} *</label>
+        <div class="col-xxl-8">
+            <select name="provider_type" id="dns-provider-select" class="form-select" required>
+                <option value="" {% if not item.fields['provider_type'] %}selected{% endif %} disabled>
+                    -- {{ __('Choisir un provider', 'dnsmanager') }} --
+                </option>
+                {% for type, label in providers %}
+                    <option value="{{ type }}" {% if item.fields['provider_type'] == type %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    {# Endpoint #}
+    <div class="mb-3 row" id="dns-endpoint-section">
+        <label class="col-xxl-4 col-form-label">{{ __('Endpoint / Région', 'dnsmanager') }} *</label>
+        <div class="col-xxl-8">
+            <select name="endpoint" id="dns-endpoint-select" class="form-select" required>
+                <option value="" selected disabled>-- {{ __('Choisir un endpoint', 'dnsmanager') }} --</option>
+            </select>
+        </div>
+    </div>
+
+    {{ fields.dropdownField('Supplier', 'suppliers_id', item.fields['suppliers_id'], __('Fournisseur', 'dnsmanager'), {
+        'display_emptychoice': true,
+        'emptylabel': '-- ' ~ __('Choisir un fournisseur', 'dnsmanager') ~ ' --'
+    }) }}
+
+    {{ fields.textField('domain_whitelist', item.fields['domain_whitelist'], __('Liste blanche des domaines', 'dnsmanager'), {
+        'helper': 'Domaines séparés par virgules. Vide = tous les domaines éligibles.'
+    }) }}
+
+    {{ fields.numberField('renewal_months', item.fields['renewal_months'] ?? 1, __('Délai de renouvellement (mois)', 'dnsmanager'), {
+        'min': 1, 'max': 12
+    }) }}
+
+    {{ fields.dropdownYesNo('is_active', item.fields['is_active'] ?? 1, __('Compte actif', 'dnsmanager')) }}
+
+    {{ fields.smallTitle(__('Authentification', 'dnsmanager')) }}
+
+    <div id="dns-credentials-section" class="col-12 mb-3">
+        <div class="alert alert-info"><i class="ti ti-loader me-2"></i>Chargement...</div>
+    </div>
+
+    <div class="col-12 mb-3 d-flex gap-2 flex-wrap">
+        <button type="button" id="dns-btn-test" class="btn btn-info">
+            <i class="ti ti-plug me-1"></i>{{ __('Tester la connexion', 'dnsmanager') }}
+        </button>
+        {% if item.fields['id'] > 0 %}
+        <button type="button" id="dns-btn-sync" class="btn btn-primary">
+            <i class="ti ti-refresh me-1"></i>{{ __('Synchroniser maintenant', 'dnsmanager') }}
+        </button>
+        {% endif %}
+    </div>
+    <div id="dns-action-result" class="col-12 mb-3"></div>
+
+{% endblock more_fields %}

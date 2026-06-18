@@ -1,0 +1,166 @@
+{% extends "layout/page_without_tabs.html.twig" %}
+
+{% block content_title %}
+    <i class="ti ti-world-upload me-2"></i>{{ __('Import de domaines DNS', 'dnsmanager') }}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-3">
+    <form method="post" action="{{ webdir }}/front/domain.import.php">
+        <input type="hidden" name="_glpi_csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="account_id" value="{{ account_id }}">
+        <input type="hidden" name="action" value="import">
+
+        {# Nouveaux domaines à importer #}
+        {% if to_import is not empty %}
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h3 class="mb-0">
+                    <i class="ti ti-circle-plus me-2"></i>
+                    {{ __('Nouveaux domaines à importer', 'dnsmanager') }}
+                    <span class="badge bg-white text-success ms-2">{{ to_import|length }}</span>
+                </h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    {{ __('Choisissez l\'entité de rattachement pour chaque domaine. Les domaines sans entité choisie ne seront pas importés.', 'dnsmanager') }}
+                </p>
+                <table class="table table-striped table-sm">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>{{ __('Domaine', 'dnsmanager') }}</th>
+                            <th>{{ __('Entité de rattachement', 'dnsmanager') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for domain in to_import %}
+                        <tr>
+                            <td>
+                                <strong>{{ domain.domain_data.name }}</strong>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input import-checkbox"
+                                               type="checkbox"
+                                               id="cb_{{ domain.encoded_ref }}"
+                                               data-ref="{{ domain.encoded_ref }}"
+                                               onchange="document.getElementById('dd_{{ domain.encoded_ref }}').style.display = this.checked ? '' : 'none'">
+                                        <label class="form-check-label" for="cb_{{ domain.encoded_ref }}">
+                                            {{ __('Importer', 'dnsmanager') }}
+                                        </label>
+                                    </div>
+                                    <div id="dd_{{ domain.encoded_ref }}" style="display:none">
+                                        {{ entity_dropdowns[domain.encoded_ref]|raw }}
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {# Domaines à restaurer depuis la corbeille #}
+        {% if to_restore is not empty %}
+        <div class="card mb-4">
+            <div class="card-header bg-warning">
+                <h3 class="mb-0">
+                    <i class="ti ti-restore me-2"></i>
+                    {{ __('Domaines à restaurer (corbeille)', 'dnsmanager') }}
+                    <span class="badge bg-white text-warning ms-2">{{ to_restore|length }}</span>
+                </h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">{{ __('Ces domaines sont en corbeille dans GLPI mais présents chez le provider. Ils seront automatiquement restaurés et synchronisés.', 'dnsmanager') }}</p>
+                <ul class="list-group">
+                    {% for domain in to_restore %}
+                    <li class="list-group-item">
+                        <i class="ti ti-restore me-2 text-warning"></i>
+                        <strong>{{ domain.domain_data.name }}</strong>
+                        <input type="hidden" name="restore[]" value="{{ domain.domain_data.ref }}">
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+
+        {# Domaines absents du provider - proposer suppression #}
+        {% if to_delete is not empty %}
+        <div class="card mb-4">
+            <div class="card-header bg-danger text-white">
+                <h3 class="mb-0">
+                    <i class="ti ti-trash me-2"></i>
+                    {{ __('Domaines absents du provider', 'dnsmanager') }}
+                    <span class="badge bg-white text-danger ms-2">{{ to_delete|length }}</span>
+                </h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">{{ __('Ces domaines sont dans GLPI mais absents de tous les providers. Souhaitez-vous les mettre en corbeille ?', 'dnsmanager') }}</p>
+                <table class="table table-striped table-sm">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>{{ __('Domaine', 'dnsmanager') }}</th>
+                            <th>{{ __('Fournisseur', 'dnsmanager') }}</th>
+                            <th>{{ __('Compte', 'dnsmanager') }}</th>
+                            <th class="text-center">{{ __('Mettre en corbeille', 'dnsmanager') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for domain in to_delete %}
+                        <tr>
+                            <td><strong>{{ domain.glpi_domain.name }}</strong></td>
+                            <td>{{ domain.account.provider_type|upper }}</td>
+                            <td>{{ domain.account.name }}</td>
+                            <td class="text-center">
+                                <input type="checkbox" name="delete[]" value="{{ domain.mapping.provider_ref }}"
+                                       class="form-check-input">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {# Résumé sync normale #}
+        {% if to_sync is not empty %}
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h3 class="mb-0">
+                    <i class="ti ti-refresh me-2"></i>
+                    {{ __('Domaines à synchroniser', 'dnsmanager') }}
+                    <span class="badge bg-white text-info ms-2">{{ to_sync|length }}</span>
+                </h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">{{ __('Ces domaines seront synchronisés automatiquement.', 'dnsmanager') }}</p>
+                <ul class="list-group list-group-flush">
+                    {% for domain in to_sync %}
+                    <li class="list-group-item">
+                        <i class="ti ti-check me-2 text-success"></i>
+                        {{ domain.domain_data.name }}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+
+        {# Boutons #}
+        <div class="d-flex gap-3 mb-4">
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="ti ti-player-play me-2"></i>{{ __('Import + Synchronisation', 'dnsmanager') }}
+            </button>
+            <a href="{{ webdir }}/front/account.form.php?id={{ account_id }}" class="btn btn-secondary btn-lg">
+                <i class="ti ti-x me-2"></i>{{ __('Annuler', 'dnsmanager') }}
+            </a>
+        </div>
+
+    </form>
+</div>
+{% endblock %}

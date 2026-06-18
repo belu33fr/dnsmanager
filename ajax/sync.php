@@ -1,102 +1,78 @@
 <?php
-/**
- * DNSManage - Endpoint AJAX : synchronisation et test de connexion
- */
+
+use GlpiPlugin\Dnsmanager\Account;
+use GlpiPlugin\Dnsmanager\Credential;
+use GlpiPlugin\Dnsmanager\Importer;
+use GlpiPlugin\Dnsmanager\ProviderFactory;
 
 include('../../../inc/includes.php');
 
 Session::checkLoginUser();
-Session::checkRight('config', READ);
+Session::checkRight('plugin_dnsmanager_account', READ);
 
 header('Content-Type: application/json');
 
 $action    = $_POST['action'] ?? '';
-$accountId = (int) ($_POST['account_id'] ?? 0);
+$accountId = (int)($_POST['account_id'] ?? 0);
 
 try {
     switch ($action) {
 
-        // ----------------------------------------------------------
-        // Synchronisation d'un compte existant
-        // ----------------------------------------------------------
         case 'sync':
-            Session::checkRight('config', UPDATE);
+            Session::checkRight('plugin_dnsmanager_sync', UPDATE);
             if (!$accountId) throw new \InvalidArgumentException('ID de compte manquant.');
-
-            $importer = new PluginDnsmanageImporter($accountId);
+            $importer = new Importer($accountId);
             $result   = $importer->sync();
-
-            echo json_encode([
-                'success'         => true,
-                'added'           => $result['added'],
-                'updated'         => $result['updated'],
-                'records_added'   => $result['records_added'],
-                'records_updated' => $result['records_updated'],
-                'errors'          => $result['errors'],
-            ]);
+            echo json_encode(['success' => true] + $result);
             break;
 
-        // ----------------------------------------------------------
-        // Test de connexion pour un compte existant (par ID)
-        // ----------------------------------------------------------
         case 'test':
             if (!$accountId) throw new \InvalidArgumentException('ID de compte manquant.');
-
-            $provider = PluginDnsmanageAccount::getProvider($accountId);
-            $provider->testConnection();
-
+            Account::getProvider($accountId)->testConnection();
             echo json_encode(['success' => true]);
             break;
 
-        // ----------------------------------------------------------
-        // Test de connexion depuis le formulaire
-        // ----------------------------------------------------------
         case 'test_form':
             $providerType = trim($_POST['provider_type'] ?? '');
-            $endpoint     = trim($_POST['endpoint'] ?? '');
-
+            $endpoint     = trim($_POST['endpoint']      ?? '');
             if (!$providerType) throw new \InvalidArgumentException('Type de provider manquant.');
 
-            $fields      = PluginDnsmanageProviderFactory::getCredentialFields($providerType);
-            $credentials = [];
+            $fields      = ProviderFactory::getCredentialFields($providerType);
+            $credentials = $accountId ? Credential::getForAccount($accountId) : [];
 
-            // 1. Partir des credentials stockés si un compte existe (base de départ)
-            if ($accountId) {
-                $credentials = PluginDnsmanageCredential::getForAccount($accountId);
-            }
-
-            // 2. Écraser avec les valeurs saisies dans le formulaire (priorité au formulaire)
             foreach ($fields as $field) {
                 $val = trim($_POST['cred_' . $field['key']] ?? '');
-                if ($val !== '') {
-                    $credentials[$field['key']] = $val;
-                }
+                if ($val !== '') $credentials[$field['key']] = $val;
             }
 
-            // 3. Vérifier que les champs obligatoires sont présents
             $missing = [];
             foreach ($fields as $field) {
-                if ($field['required'] && empty($credentials[$field['key']])) {
-                    $missing[] = $field['label'];
-                }
+                if ($field['required'] && empty($credentials[$field['key']])) $missing[] = $field['label'];
             }
-            if (!empty($missing)) {
-                throw new \InvalidArgumentException('Champs manquants : ' . implode(', ', $missing));
-            }
+            if (!empty($missing)) throw new \InvalidArgumentException('Champs manquants : ' . implode(', ', $missing));
 
-            $provider = PluginDnsmanageProviderFactory::create($providerType, $credentials, $endpoint);
-            $provider->testConnection();
-
+            ProviderFactory::create($providerType, $credentials, $endpoint)->testConnection();
             echo json_encode(['success' => true]);
+            break;
+
+        case 'sync_domain':
+            $accountId = (int)($_POST['account_id'] ?? 0);
+            $domainRef = trim($_POST['domain_ref'] ?? '');
+            if (!$accountId || !$domainRef) {
+                echo json_encode(['success' => false, 'message' => 'Paramètres manquants']);
+                break;
+            }
+            $importer = new Importer($accountId, false);
+            $result   = $importer->syncDomainByRef($domainRef);
+            echo json_encode([
+                'success' => true,
+                'message' => ($result['records_added'] ?? 0) . ' créé(s), ' . ($result['records_updated'] ?? 0) . ' mis à jour.',
+            ]);
             break;
 
         default:
             throw new \InvalidArgumentException("Action inconnue : $action");
     }
-
 } catch (\Exception $e) {
-    echo json_encode([
-        'success' => false,
-        'message' => $e->getMessage(),
-    ]);
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 }

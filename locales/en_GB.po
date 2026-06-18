@@ -1,0 +1,248 @@
+# DNS Manager GLPI Plugin - English
+# Copyright (C) 2026 BLConseils
+msgid ""
+msgstr ""
+"Project-Id-Version: dnsmanager 3.0.4\n"
+"PO-Revision-Date: 2026-06-18 00:00+0000\n"
+"Language: en_GB\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "%d domaine(s) importé(s), %d restauré(s), %d supprimé(s). Sync : %d domaine(s), %d enregistrement(s)."
+msgstr "%d domain(s) imported, %d restored, %d deleted. Sync: %d domain(s), %d record(s)."
+
+msgid "%d enregistrement(s) en cache."
+msgstr "%d record(s) in cache."
+
+msgid "%d nouveau(x) domaine(s) à importer depuis \"%s\" : %s — <a href=\"%s\" class=\"btn btn-sm btn-warning ms-2\">Importer maintenant</a>"
+msgstr "%d new domain(s) to import from \"%s\": %s — <a href=\"%s\" class=\"btn btn-sm btn-warning ms-2\">Import now</a>"
+
+msgid "Administrateur"
+msgstr "Administrator"
+
+msgid "Analyser et synchroniser"
+msgstr "Analyse and synchronise"
+
+msgid "Annuler"
+msgstr "Cancel"
+
+msgid "Authentification"
+msgstr "Authentication"
+
+msgid "Cache du plugin"
+msgstr "Plugin cache"
+
+msgid "Cache vidé avec succès."
+msgstr "Cache cleared successfully."
+
+msgid "Ces domaines seront synchronisés automatiquement."
+msgstr "These domains will be synchronised automatically."
+
+msgid "Ces domaines sont dans GLPI mais absents de tous les providers. Souhaitez-vous les mettre en corbeille ?"
+msgstr "These domains are in GLPI but absent from all providers. Do you want to trash them?"
+
+msgid "Ces domaines sont en corbeille dans GLPI mais présents chez le provider. Ils seront automatiquement restaurés et synchronisés."
+msgstr "These domains are in the GLPI trash but present at the provider. They will be automatically restored and synchronised."
+
+msgid "Choisir un endpoint"
+msgstr "Choose an endpoint"
+
+msgid "Choisir un fournisseur"
+msgstr "Choose a supplier"
+
+msgid "Choisir un provider"
+msgstr "Choose a provider"
+
+msgid "Compte DNS"
+msgstr "DNS Account"
+
+msgid "Compte DNS hébergeur"
+msgstr "DNS hosting account"
+
+msgid "Comptes DNS"
+msgstr "DNS Accounts"
+
+msgid "Configuration DNS Hébergeurs"
+msgstr "DNS Hosting Configuration"
+
+msgid "Configuration enregistrée."
+msgstr "Configuration saved."
+
+msgid "Configuration → Actions automatiques → SyncAllAccounts"
+msgstr "Configuration → Automatic Actions → SyncAllAccounts"
+
+msgid "DNS Hébergeurs"
+msgstr "DNS Hosting"
+
+msgid "DNS Sync"
+msgstr "DNS Sync"
+
+msgid "Dernière sync"
+msgstr "Last sync"
+
+msgid "Dernière synchronisation"
+msgstr "Last synchronisation"
+
+msgid "Domaine"
+msgstr "Domain"
+
+msgid "Domaines absents du provider"
+msgstr "Domains absent from provider"
+
+msgid "Domaines à restaurer (corbeille)"
+msgstr "Domains to restore (trash)"
+
+msgid "Domaines à synchroniser"
+msgstr "Domains to synchronise"
+
+msgid "Préavis de facturation (mois)"
+msgstr "Renewal period (months)"
+
+msgid "Endpoint / Région"
+msgstr "Endpoint / Region"
+
+msgid "Enregistrer"
+msgstr "Save"
+
+msgid "Entité de rattachement"
+msgstr "Entity"
+
+msgid "Erreurs :"
+msgstr "Errors:"
+
+msgid "Financier"
+msgstr "Financial"
+
+msgid "Fournisseur"
+msgstr "Supplier"
+
+msgid "Import + Synchronisation"
+msgstr "Import + Synchronisation"
+
+msgid "Import de domaines DNS"
+msgstr "DNS domain import"
+
+msgid "Importer"
+msgstr "Import"
+
+msgid "Informations de synchronisation DNS"
+msgstr "DNS synchronisation information"
+
+msgid "Informations générales"
+msgstr "General information"
+
+msgid "Intitulés entités import (séparés par ;)"
+msgstr "Entity labels for import (separated by ;)"
+
+msgid "Jamais"
+msgstr "Never"
+
+msgid "La fréquence de synchronisation automatique est configurable dans"
+msgstr "The automatic synchronisation frequency can be configured in"
+
+msgid "Liste blanche des domaines"
+msgstr "Domain whitelist"
+
+msgid "Mettre en corbeille"
+msgstr "Move to trash"
+
+msgid "Modifier la liste blanche"
+msgstr "Edit whitelist"
+
+msgid "Modifier le délai de renouvellement"
+msgstr "Edit renewal period"
+
+msgid "Modifier le fournisseur"
+msgstr "Edit supplier"
+
+msgid "Ne pas importer"
+msgstr "Do not import"
+
+msgid "Nom"
+msgstr "Name"
+
+msgid "Nouveaux domaines à importer"
+msgstr "New domains to import"
+
+msgid "Paramètres généraux"
+msgstr "General settings"
+
+msgid "Paramétrage"
+msgstr "Settings"
+
+msgid "Plugin Accounts requis pour les contacts."
+msgstr "Accounts plugin required for contacts."
+
+msgid "Propriétaire"
+msgstr "Owner"
+
+msgid "Provider"
+msgstr "Provider"
+
+msgid "Référence provider"
+msgstr "Provider reference"
+
+msgid "Sync DNS"
+msgstr "DNS Sync"
+
+msgid "Sync rapide"
+msgstr "Quick sync"
+
+msgid "Synchronisation"
+msgstr "Synchronisation"
+
+msgid "Synchronisation DNS"
+msgstr "DNS Synchronisation"
+
+msgid "Synchronisation terminée : %d domaine(s), %d enregistrement(s)."
+msgstr "Synchronisation complete: %d domain(s), %d record(s)."
+
+msgid "Synchroniser ce domaine"
+msgstr "Synchronise this domain"
+
+msgid "Synchroniser maintenant"
+msgstr "Synchronise now"
+
+msgid "Technicien"
+msgstr "Technician"
+
+msgid "Tester la connexion"
+msgstr "Test connection"
+
+msgid "Vider le cache"
+msgstr "Clear cache"
+
+msgid "Vider le cache supprimera tous les mappings. La prochaine synchronisation recréera tout. Continuer?"
+msgstr "Clearing the cache will remove all mappings. The next synchronisation will recreate everything. Continue?"
+
+msgid "Contacts par défaut (copiés à l'import)"
+msgstr "Default contacts (copied on import)"
+
+msgid "Accès en lecture seule."
+msgstr "Read-only access."
+
+msgid "Ce domaine n'est associé à aucun compte DNS Hébergeurs."
+msgstr "This domain is not associated with any DNS hosting account."
+
+msgid "Voir journal"
+msgstr "View log"
+
+msgid "Exécuter"
+msgstr "Execute"
+
+msgid "Autoriser"
+msgstr "Allow"
+
+msgid "Lire"
+msgstr "Read"
+
+msgid "Modifier"
+msgstr "Edit"
+
+msgid "Domaines séparés par virgules. Vide = tous les domaines éligibles."
+msgstr "Domains separated by commas. Empty = all eligible domains."
+
+msgid "Préavis de facturation (mois)"
+msgstr "Billing notice period (months)"

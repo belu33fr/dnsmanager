@@ -1,149 +1,230 @@
-# DNSManage - Plugin GLPI
-# Traductions françaises
+# DNS Manager GLPI Plugin - Français
+# Copyright (C) 2026 BLConseils
 msgid ""
 msgstr ""
-"Project-Id-Version: DNSManage 1.0.0\n"
-"Report-Msgid-Bugs-To: \n"
+"Project-Id-Version: dnsmanager 3.0.4\n"
+"PO-Revision-Date: 2026-06-18 00:00+0000\n"
 "Language: fr_FR\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-msgid "Compte DNS"
-msgstr "Compte DNS"
+msgid "%d domaine(s) importé(s), %d restauré(s), %d supprimé(s). Sync : %d domaine(s), %d enregistrement(s)."
+msgstr "%d domaine(s) importé(s), %d restauré(s), %d supprimé(s). Sync : %d domaine(s), %d enregistrement(s)."
 
-msgid "Comptes DNS"
-msgstr "Comptes DNS"
+msgid "%d enregistrement(s) en cache."
+msgstr "%d enregistrement(s) en cache."
 
-msgid "Comptes provider"
-msgstr "Comptes provider"
+msgid "Administrateur"
+msgstr "Administrateur"
 
-msgid "Journaux de synchronisation"
-msgstr "Journaux de synchronisation"
-
-msgid "Journal de sync"
-msgstr "Journal de sync"
-
-msgid "Journaux de sync"
-msgstr "Journaux de sync"
-
-msgid "Nouveau compte DNS"
-msgstr "Nouveau compte DNS"
-
-msgid "Nouveau compte DNS provider"
-msgstr "Nouveau compte DNS provider"
-
-msgid "Informations générales"
-msgstr "Informations générales"
-
-msgid "Nom du compte"
-msgstr "Nom du compte"
-
-msgid "Provider"
-msgstr "Provider"
-
-msgid "Endpoint / Région"
-msgstr "Endpoint / Région"
-
-msgid "Commentaire"
-msgstr "Commentaire"
-
-msgid "Compte actif"
-msgstr "Compte actif"
-
-msgid "Authentification"
-msgstr "Authentification"
-
-msgid "Enregistrer"
-msgstr "Enregistrer"
+msgid "Analyser et synchroniser"
+msgstr "Analyser et synchroniser"
 
 msgid "Annuler"
 msgstr "Annuler"
 
-msgid "Tester la connexion"
-msgstr "Tester la connexion"
+msgid "Authentification"
+msgstr "Authentification"
 
-msgid "Supprimer"
-msgstr "Supprimer"
+msgid "Cache du plugin"
+msgstr "Cache du plugin"
 
-msgid "Supprimer ce compte ?"
-msgstr "Supprimer ce compte ?"
+msgid "Cache vidé avec succès."
+msgstr "Cache vidé avec succès."
 
-msgid "Compte mis à jour avec succès."
-msgstr "Compte mis à jour avec succès."
+msgid "Choisir un endpoint"
+msgstr "Choisir un endpoint"
 
-msgid "Compte créé avec succès."
-msgstr "Compte créé avec succès."
+msgid "Choisir un fournisseur"
+msgstr "Choisir un fournisseur"
 
-msgid "Compte supprimé."
-msgstr "Compte supprimé."
+msgid "Choisir un provider"
+msgstr "Choisir un provider"
 
-msgid "Ajouter un compte"
-msgstr "Ajouter un compte"
+msgid "Compte DNS"
+msgstr "Compte DNS"
 
-msgid "Gérer les comptes"
-msgstr "Gérer les comptes"
+msgid "Compte DNS hébergeur"
+msgstr "Compte DNS hébergeur"
 
-msgid "Comptes DNS provider"
-msgstr "Comptes DNS provider"
+msgid "Comptes DNS"
+msgstr "Comptes DNS"
 
-msgid "Aucun compte DNS configuré. Commencez par ajouter un compte provider."
-msgstr "Aucun compte DNS configuré. Commencez par ajouter un compte provider."
+msgid "Configuration DNS Hébergeurs"
+msgstr "Configuration DNS Hébergeurs"
 
-msgid "Nom"
-msgstr "Nom"
+msgid "Configuration enregistrée."
+msgstr "Configuration enregistrée."
+
+msgid "DNS Hébergeurs"
+msgstr "DNS Hébergeurs"
+
+msgid "DNS Sync"
+msgstr "DNS Sync"
 
 msgid "Dernière sync"
 msgstr "Dernière sync"
 
-msgid "Statut"
-msgstr "Statut"
+msgid "Dernière synchronisation"
+msgstr "Dernière synchronisation"
 
-msgid "Actions"
-msgstr "Actions"
+msgid "Domaine"
+msgstr "Domaine"
+
+msgid "Domaines absents du provider"
+msgstr "Domaines absents du provider"
+
+msgid "Domaines à restaurer (corbeille)"
+msgstr "Domaines à restaurer (corbeille)"
+
+msgid "Domaines à synchroniser"
+msgstr "Domaines à synchroniser"
+
+msgid "Préavis de facturation (mois)"
+msgstr "Délai de renouvellement (mois)"
+
+msgid "Endpoint / Région"
+msgstr "Endpoint / Région"
+
+msgid "Enregistrer"
+msgstr "Enregistrer"
+
+msgid "Entité de rattachement"
+msgstr "Entité de rattachement"
+
+msgid "Erreurs :"
+msgstr "Erreurs :"
+
+msgid "Financier"
+msgstr "Financier"
+
+msgid "Fournisseur"
+msgstr "Fournisseur"
+
+msgid "Import + Synchronisation"
+msgstr "Import + Synchronisation"
+
+msgid "Import de domaines DNS"
+msgstr "Import de domaines DNS"
+
+msgid "Importer"
+msgstr "Importer"
+
+msgid "Informations de synchronisation DNS"
+msgstr "Informations de synchronisation DNS"
+
+msgid "Informations générales"
+msgstr "Informations générales"
+
+msgid "Intitulés entités import (séparés par ;)"
+msgstr "Intitulés entités import (séparés par ;)"
 
 msgid "Jamais"
 msgstr "Jamais"
 
-msgid "Actif"
-msgstr "Actif"
+msgid "La fréquence de synchronisation automatique est configurable dans"
+msgstr "La fréquence de synchronisation automatique est configurable dans"
 
-msgid "Inactif"
-msgstr "Inactif"
+msgid "Liste blanche des domaines"
+msgstr "Liste blanche des domaines"
+
+msgid "Mettre en corbeille"
+msgstr "Mettre en corbeille"
+
+msgid "Modifier la liste blanche"
+msgstr "Modifier la liste blanche"
+
+msgid "Modifier le délai de renouvellement"
+msgstr "Modifier le délai de renouvellement"
+
+msgid "Modifier le fournisseur"
+msgstr "Modifier le fournisseur"
+
+msgid "Ne pas importer"
+msgstr "Ne pas importer"
+
+msgid "Nom"
+msgstr "Nom"
+
+msgid "Nouveaux domaines à importer"
+msgstr "Nouveaux domaines à importer"
+
+msgid "Paramètres généraux"
+msgstr "Paramètres généraux"
+
+msgid "Paramétrage"
+msgstr "Paramétrage"
+
+msgid "Plugin Accounts requis pour les contacts."
+msgstr "Plugin Accounts requis pour les contacts."
+
+msgid "Propriétaire"
+msgstr "Propriétaire"
+
+msgid "Provider"
+msgstr "Provider"
+
+msgid "Référence provider"
+msgstr "Référence provider"
+
+msgid "Sync DNS"
+msgstr "Sync DNS"
+
+msgid "Sync rapide"
+msgstr "Sync rapide"
+
+msgid "Synchronisation"
+msgstr "Synchronisation"
+
+msgid "Synchronisation DNS"
+msgstr "Synchronisation DNS"
+
+msgid "Synchronisation terminée : %d domaine(s), %d enregistrement(s)."
+msgstr "Synchronisation terminée : %d domaine(s), %d enregistrement(s)."
+
+msgid "Synchroniser ce domaine"
+msgstr "Synchroniser ce domaine"
 
 msgid "Synchroniser maintenant"
 msgstr "Synchroniser maintenant"
 
+msgid "Technicien"
+msgstr "Technicien"
+
+msgid "Tester la connexion"
+msgstr "Tester la connexion"
+
+msgid "Vider le cache"
+msgstr "Vider le cache"
+
+msgid "Contacts par défaut (copiés à l'import)"
+msgstr "Contacts par défaut (copiés à l'import)"
+
+msgid "Accès en lecture seule."
+msgstr "Accès en lecture seule."
+
+msgid "Ce domaine n'est associé à aucun compte DNS Hébergeurs."
+msgstr "Ce domaine n'est associé à aucun compte DNS Hébergeurs."
+
+msgid "Voir journal"
+msgstr "Voir journal"
+
+msgid "Exécuter"
+msgstr "Exécuter"
+
+msgid "Autoriser"
+msgstr "Autoriser"
+
+msgid "Lire"
+msgstr "Lire"
+
 msgid "Modifier"
 msgstr "Modifier"
 
-msgid "Chargement des champs..."
-msgstr "Chargement des champs..."
+msgid "Domaines séparés par virgules. Vide = tous les domaines éligibles."
+msgstr "Domaines séparés par virgules. Vide = tous les domaines éligibles."
 
-msgid "Aucune synchronisation enregistrée."
-msgstr "Aucune synchronisation enregistrée."
-
-msgid "Compte"
-msgstr "Compte"
-
-msgid "Démarré"
-msgstr "Démarré"
-
-msgid "Durée"
-msgstr "Durée"
-
-msgid "Domaines"
-msgstr "Domaines"
-
-msgid "Enregistrements"
-msgstr "Enregistrements"
-
-msgid "Erreurs"
-msgstr "Erreurs"
-
-msgid "Voir"
-msgstr "Voir"
-
-msgid "Synchronisation automatique de tous les comptes DNS actifs"
-msgstr "Synchronisation automatique de tous les comptes DNS actifs"
+msgid "Préavis de facturation (mois)"
+msgstr "Préavis de facturation (mois)"

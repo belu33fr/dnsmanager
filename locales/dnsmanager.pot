@@ -1,0 +1,247 @@
+# DNS Manager GLPI Plugin
+# Copyright (C) 2026 BLConseils
+# This file is distributed under the same license as the dnsmanager package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: dnsmanager 3.0.4\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-18 00:00+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "%d domaine(s) importé(s), %d restauré(s), %d supprimé(s). Sync : %d domaine(s), %d enregistrement(s)."
+msgstr ""
+
+msgid "%d enregistrement(s) en cache."
+msgstr ""
+
+msgid "%d nouveau(x) domaine(s) à importer depuis \"%s\" : %s — <a href=\"%s\" class=\"btn btn-sm btn-warning ms-2\">Importer maintenant</a>"
+msgstr ""
+
+msgid "Administrateur"
+msgstr ""
+
+msgid "Analyser et synchroniser"
+msgstr ""
+
+msgid "Annuler"
+msgstr ""
+
+msgid "Authentification"
+msgstr ""
+
+msgid "Cache du plugin"
+msgstr ""
+
+msgid "Cache vidé avec succès."
+msgstr ""
+
+msgid "Ces domaines seront synchronisés automatiquement."
+msgstr ""
+
+msgid "Ces domaines sont dans GLPI mais absents de tous les providers. Souhaitez-vous les mettre en corbeille ?"
+msgstr ""
+
+msgid "Ces domaines sont en corbeille dans GLPI mais présents chez le provider. Ils seront automatiquement restaurés et synchronisés."
+msgstr ""
+
+msgid "Choisir un endpoint"
+msgstr ""
+
+msgid "Choisir un fournisseur"
+msgstr ""
+
+msgid "Choisir un provider"
+msgstr ""
+
+msgid "Compte DNS"
+msgstr ""
+
+msgid "Compte DNS hébergeur"
+msgstr ""
+
+msgid "Comptes DNS"
+msgstr ""
+
+msgid "Configuration DNS Hébergeurs"
+msgstr ""
+
+msgid "Configuration enregistrée."
+msgstr ""
+
+msgid "Configuration → Actions automatiques → SyncAllAccounts"
+msgstr ""
+
+msgid "DNS Hébergeurs"
+msgstr ""
+
+msgid "DNS Sync"
+msgstr ""
+
+msgid "Dernière sync"
+msgstr ""
+
+msgid "Dernière synchronisation"
+msgstr ""
+
+msgid "Domaine"
+msgstr ""
+
+msgid "Domaines absents du provider"
+msgstr ""
+
+msgid "Domaines à restaurer (corbeille)"
+msgstr ""
+
+msgid "Domaines à synchroniser"
+msgstr ""
+
+msgid "Délai de renouvellement (mois)"
+msgstr ""
+
+msgid "Endpoint / Région"
+msgstr ""
+
+msgid "Enregistrer"
+msgstr ""
+
+msgid "Entité de rattachement"
+msgstr ""
+
+msgid "Erreurs :"
+msgstr ""
+
+msgid "Financier"
+msgstr ""
+
+msgid "Fournisseur"
+msgstr ""
+
+msgid "Import + Synchronisation"
+msgstr ""
+
+msgid "Import de domaines DNS"
+msgstr ""
+
+msgid "Importer"
+msgstr ""
+
+msgid "Informations de synchronisation DNS"
+msgstr ""
+
+msgid "Informations générales"
+msgstr ""
+
+msgid "Intitulés entités import (séparés par ;)"
+msgstr ""
+
+msgid "Jamais"
+msgstr ""
+
+msgid "La fréquence de synchronisation automatique est configurable dans"
+msgstr ""
+
+msgid "Liste blanche des domaines"
+msgstr ""
+
+msgid "Mettre en corbeille"
+msgstr ""
+
+msgid "Modifier la liste blanche"
+msgstr ""
+
+msgid "Modifier le délai de renouvellement"
+msgstr ""
+
+msgid "Modifier le fournisseur"
+msgstr ""
+
+msgid "Ne pas importer"
+msgstr ""
+
+msgid "Nom"
+msgstr ""
+
+msgid "Nouveaux domaines à importer"
+msgstr ""
+
+msgid "Paramètres généraux"
+msgstr ""
+
+msgid "Paramétrage"
+msgstr ""
+
+msgid "Plugin Accounts requis pour les contacts."
+msgstr ""
+
+msgid "Propriétaire"
+msgstr ""
+
+msgid "Provider"
+msgstr ""
+
+msgid "Référence provider"
+msgstr ""
+
+msgid "Sync DNS"
+msgstr ""
+
+msgid "Sync rapide"
+msgstr ""
+
+msgid "Synchronisation"
+msgstr ""
+
+msgid "Synchronisation DNS"
+msgstr ""
+
+msgid "Synchronisation terminée : %d domaine(s), %d enregistrement(s)."
+msgstr ""
+
+msgid "Synchroniser ce domaine"
+msgstr ""
+
+msgid "Synchroniser maintenant"
+msgstr ""
+
+msgid "Technicien"
+msgstr ""
+
+msgid "Tester la connexion"
+msgstr ""
+
+msgid "Vider le cache"
+msgstr ""
+
+msgid "Vider le cache supprimera tous les mappings. La prochaine synchronisation recréera tout. Continuer?"
+msgstr ""
+
+msgid "Contacts par défaut (copiés à l'import)"
+msgstr ""
+
+msgid "Accès en lecture seule."
+msgstr ""
+
+msgid "Ce domaine n'est associé à aucun compte DNS Hébergeurs."
+msgstr ""
+
+msgid "Voir journal"
+msgstr ""
+
+msgid "Exécuter"
+msgstr ""
+
+msgid "Autoriser"
+msgstr ""
+
+msgid "Lire"
+msgstr ""
+
+msgid "Modifier"
+msgstr ""

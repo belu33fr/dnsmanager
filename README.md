@@ -1,153 +1,54 @@
-# DNSManage — Plugin GLPI de gestion DNS multi-provider
+# DNS Hébergeurs — Plugin GLPI 11
 
-> Version 1.0.0 | Compatible GLPI 11.x | PHP 8.1+
+Plugin de gestion et synchronisation des enregistrements DNS pour GLPI 11.
 
-Plugin GLPI permettant d'importer et de synchroniser automatiquement les domaines et enregistrements DNS depuis plusieurs providers (OVH, Gandi, Cloudflare, etc.) directement dans le module DNS natif de GLPI.
-
----
+[![GLPI](https://img.shields.io/badge/GLPI-11.0%2B-blue)](https://glpi-project.org)
+[![License](https://img.shields.io/badge/License-GPL%20v2%2B-green)](LICENSE)
+[![Version](https://img.shields.io/badge/Version-3.0.6-orange)](https://github.com/belu33fr/dnsmanager/releases)
 
 ## Fonctionnalités
 
-- **Import multi-provider** : architecture extensible via `ProviderInterface`
-- **Provider OVH inclus** : support de tous les endpoints OVH (EU, CA, US, SoYouStart, Kimsufi)
-- **Synchronisation** manuelle (bouton) et automatique (tâche CRON GLPI)
-- **Credentials chiffrés** en AES-256-CBC, jamais stockés en clair
-- **Mapping** entre les domaines/enregistrements provider et les entités GLPI natives (`glpi_domains`, `glpi_domainrecords`)
-- **Journal de synchronisation** complet (ajouts, mises à jour, erreurs)
-- **Multi-entités GLPI** : chaque compte est rattaché à une entité
-- **Phase 3 prête** : architecture prévue pour la modification des enregistrements (non activée en UI)
+- 🌐 Support multi-providers : **OVH/OVHcloud**, **Gandi**
+- 🔄 Synchronisation automatique (CRON) et manuelle
+- 📥 Import interactif des domaines avec choix d'entité
+- 🔒 Verrouillage des contacts par domaine
+- 👥 Gestion des droits par profil GLPI
+- 🌍 Interface en Français et Anglais
 
----
+## Providers supportés
 
-## Prérequis
-
-| Composant | Version minimum |
-|-----------|----------------|
-| GLPI      | 11.0.0         |
-| PHP       | 8.1            |
-| Extension PHP | curl, json, openssl |
-| MySQL/MariaDB | 5.7 / 10.3  |
-
----
+| Provider | Enregistrements | Dates | Multi-endpoint |
+|----------|----------------|-------|----------------|
+| OVH / OVHcloud | ✅ | ✅ (RDAP) | ✅ (EU, CA, US, SYS...) |
+| Gandi (LiveDNS) | ✅ | ✅ (API) | ✅ (Production, Sandbox) |
 
 ## Installation
 
-1. Copier le dossier `dnsmanager/` dans `{GLPI}/plugins/`
-2. Se connecter à GLPI en administrateur
-3. Aller dans **Configuration → Plugins**
-4. Cliquer **Installer** puis **Activer** sur DNSManage
-
----
-
-## Configuration OVH
-
-### 1. Créer une application OVH
-
-Rendez-vous sur https://eu.api.ovh.com/createApp et créez une application.
-Vous obtenez :
-- `Application Key (AK)`
-- `Application Secret (AS)`
-
-### 2. Générer un Consumer Key
-
 ```bash
-curl -X POST https://eu.api.ovh.com/1.0/auth/credential \
-  -H "X-Ovh-Application: VOTRE_APP_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "accessRules": [
-      {"method": "GET", "path": "/domain"},
-      {"method": "GET", "path": "/domain/*"},
-      {"method": "GET", "path": "/me"}
-    ],
-    "redirection": "https://votre-glpi.exemple.fr"
-  }'
+cd /var/glpi/plugins/
+unzip dnsmanager-3.0.6.zip
+chown -R www-data:www-data dnsmanager/
 ```
 
-Ouvrez l'URL `validationUrl` retournée dans votre navigateur et validez.
-Récupérez le `consumerKey` retourné.
+Puis dans GLPI : **Configuration → Plugins → DNS Hébergeurs → Installer → Activer**
 
-> **Pour activer la Phase 3** (modification), ajouter les droits `PUT`, `POST`, `DELETE` sur `/domain/*`.
+## Documentation
 
-### 3. Configurer dans GLPI
+- 📖 [Guide utilisateur](docs/user-guide.md)
+- 🔧 [Guide développeur — Ajouter un provider](docs/developer-guide.md)
+- 🐛 [Signaler un bug](https://github.com/belu33fr/dnsmanager/issues)
 
-- Menu **Outils → DNSManage → Ajouter un compte**
-- Saisir : Nom, Provider = OVH, Endpoint, AK, AS, CK
-- Tester la connexion
-- Lancer la première synchronisation
+## Prérequis
 
----
+- GLPI 11.0.0+
+- PHP 8.1+ (`curl`, `json`, `openssl`)
+- Plugin [Additional Fields](https://github.com/pluginsGLPI/fields)
+- Plugin [Accounts](https://github.com/InfotelGLPI/accounts)
 
-## Ajouter un nouveau provider
+## Auteurs
 
-### 1. Créer la classe
-
-```php
-// plugins/dnsmanager/inc/providers/GandiProvider.php
-
-class PluginDnsmanageGandiProvider implements PluginDnsmanageProviderInterface
-{
-    public function __construct(array $credentials, string $endpoint = '') { ... }
-    public static function getLabel(): string { return 'Gandi'; }
-    public static function getEndpoints(): array { return []; }  // URL libre
-    public static function getCredentialFields(): array {
-        return [
-            ['key' => 'api_token', 'label' => 'API Token', 'type' => 'password', 'required' => true],
-        ];
-    }
-    public function testConnection(): bool { ... }
-    public function listDomains(): array { ... }
-    public function listRecords(string $zoneRef): array { ... }
-    // + méthodes Phase 3
-}
-```
-
-### 2. Déclarer dans la Factory
-
-```php
-// inc/providers/ProviderFactory.php
-private const PROVIDERS = [
-    'ovh'   => 'PluginDnsmanageOvhProvider',
-    'gandi' => 'PluginDnsmanageGandiProvider',  // ← ajouter
-];
-```
-
-**C'est tout.** Le formulaire UI se génère automatiquement.
-
----
-
-## Structure des tables
-
-| Table | Rôle |
-|-------|------|
-| `glpi_plugin_dnsmanager_accounts` | Comptes provider (nom, type, endpoint, entité) |
-| `glpi_plugin_dnsmanager_credentials` | Credentials chiffrés AES-256-CBC |
-| `glpi_plugin_dnsmanager_domains` | Mapping domaine provider ↔ `glpi_domains` |
-| `glpi_plugin_dnsmanager_records` | Mapping enregistrement provider ↔ `glpi_domainrecords` |
-| `glpi_plugin_dnsmanager_synclogs` | Journal de synchronisation |
-| `glpi_plugin_dnsmanager_configs` | Configuration du plugin (clé chiffrement, CRON) |
-
----
-
-## Tâche CRON
-
-La tâche `SyncAllAccounts` est enregistrée automatiquement à l'activation.
-Configurer la fréquence dans **Configuration → Actions automatiques → SyncAllAccounts**.
-
----
-
-## Roadmap
-
-- [x] **Phase 1** — Configuration des comptes + chiffrement credentials
-- [x] **Phase 2** — Import domaines + enregistrements DNS (lecture seule)
-- [ ] **Phase 3** — Modification des enregistrements via GLPI (architecture prête)
-- [ ] Provider Gandi
-- [ ] Provider Cloudflare
-- [ ] Provider générique REST (configurable via UI)
-- [ ] Détection des conflits (enregistrement modifié côté provider depuis dernière sync)
-- [ ] Notifications GLPI en cas d'erreur de sync
-
----
+- **L. Berthaud** — conception métier et spécifications
+- **Claude (Anthropic)** — développement
 
 ## Licence
 

@@ -1,84 +1,91 @@
 <?php
-/**
- * DNSManage - Plugin GLPI de gestion DNS multi-provider
- *
- * @author    DNSManage
- * @license   GPL-2.0+
- * @version   1.0.0
- */
-
-define('PLUGIN_DNSMANAGE_VERSION', '1.1.0');
-define('PLUGIN_DNSMANAGE_MIN_GLPI', '11.0.0');
-define('PLUGIN_DNSMANAGE_MAX_GLPI', '12.0.0');
 
 /**
- * Init du plugin - appelé à chaque chargement de page GLPI
+ * DNSManage - Plugin GLPI 11 de gestion DNS multi-provider
  */
+
+define('PLUGIN_DNSMANAGER_VERSION', '3.0.6');
+define('PLUGIN_DNSMANAGER_MIN_GLPI', '11.0.0');
+define('PLUGIN_DNSMANAGER_MAX_GLPI', '12.0.0');
+
+use Glpi\Plugin\Hooks;
+use GlpiPlugin\Dnsmanager\Account;
+use GlpiPlugin\Dnsmanager\Synclog;
+use GlpiPlugin\Dnsmanager\Right;
+use GlpiPlugin\Dnsmanager\PluginConfig;
+use GlpiPlugin\Dnsmanager\DomainTab;
+
 function plugin_init_dnsmanager(): void
 {
     global $PLUGIN_HOOKS;
 
-    $PLUGIN_HOOKS['csrf_compliant']['dnsmanager'] = true;
-
-    // ------------------------------------------------------------------
-    // Autoloader — uniquement les fichiers qui existent réellement
-    // ------------------------------------------------------------------
-    spl_autoload_register(function (string $class): void {
-        $map = [
-            'PluginDnsmanageAccount'           => 'inc/account.class.php',
-            'PluginDnsmanageCredential'        => 'inc/credential.class.php',
-            'PluginDnsmanageSynclog'           => 'inc/synclog.class.php',
-            'PluginDnsmanageImporter'          => 'inc/importer.class.php',
-            'PluginDnsmanageConfig'            => 'inc/config.class.php',
-            'PluginDnsmanageMenu'              => 'inc/menu.class.php',
-            'PluginDnsmanageProviderInterface' => 'inc/providers/ProviderInterface.php',
-            'PluginDnsmanageProviderFactory'   => 'inc/providers/ProviderFactory.php',
-            'PluginDnsmanageOvhProvider'       => 'inc/providers/OvhProvider.php',
-        ];
-
-        if (isset($map[$class])) {
-            $file = Plugin::getPhpDir('dnsmanager') . '/' . $map[$class];
-            if (file_exists($file)) {
-                require_once $file;
-            }
-        }
-    });
+    $PLUGIN_HOOKS[Hooks::CSRF_COMPLIANT]['dnsmanager'] = true;
 
     if (!Session::getLoginUserID()) {
         return;
     }
 
-    // ------------------------------------------------------------------
-    // Déclaration du menu dans GLPI 11
-    // GLPI 11 utilise getMenuContent() sur la classe déclarée ici.
-    // La clé du tableau doit être le nom court du plugin.
-    // ------------------------------------------------------------------
-    $PLUGIN_HOOKS['menu_toadd']['dnsmanager'] = [
-        'tools' => 'PluginDnsmanageMenu',
+    // Menu dans "Outils"
+    $PLUGIN_HOOKS[Hooks::MENU_TOADD]['dnsmanager'] = [
+        'tools' => Account::class,
     ];
 
+    // Actions massives via hook (compatible namespace GLPI 11)
+    $PLUGIN_HOOKS[Hooks::USE_MASSIVE_ACTION]['dnsmanager'] = 1;
+    $PLUGIN_HOOKS['massiveactions']['dnsmanager'] = 'plugin_dnsmanager_MassiveActions';
+
+    // Enregistrer la classe pour que getItemForItemtype() la trouve
+    Plugin::registerClass(Account::class, [
+        'dropdown_itemtypes' => true,  // Expose Account dans les dropdowns Additional Fields
+    ]);
+
+    // Alias pour compatibilité MassiveAction GLPI 11
+    // getItemForItemtype() peut chercher avec l'ancien nom sans namespace
+    if (!class_exists('PluginDnsmanagerAccount', false)) {
+        class_alias(Account::class, 'PluginDnsmanagerAccount');
+    }
+
     // Tâche CRON
-    $PLUGIN_HOOKS['cron']['dnsmanager'] = 'PluginDnsmanageSynclog';
+    $PLUGIN_HOOKS['cron']['dnsmanager'] = Synclog::class;
+
+    // Charger le JS du formulaire uniquement sur account.form.php
+    if (strpos($_SERVER['REQUEST_URI'] ?? '', 'dnsmanager/front/account.form.php') !== false) {
+        $PLUGIN_HOOKS[Hooks::ADD_JAVASCRIPT]['dnsmanager'][] = 'public/account.form.js';
+    }
+
+    // Onglet "DNS Sync" dans les profils
+    Plugin::registerClass(Right::class, ['addtabon' => '\Profile']);
+
+    $PLUGIN_HOOKS[Hooks::POST_ITEM_FORM]['dnsmanager'] = 'plugin_dnsmanager_post_item_form';
+
+    // Initialiser les droits dans la session courante
+    Right::initProfile();
+
+    // Page de configuration (icône clé anglaise dans liste des plugins)
+    $PLUGIN_HOOKS[Hooks::CONFIG_PAGE]['dnsmanager'] = 'front/config.php';
+
+    // Exposer Account dans le plugin Fields (champ dropdown)
+    if (\Plugin::isPluginActive('fields') && Session::haveRight('plugin_dnsmanager_account', READ)) {
+        $PLUGIN_HOOKS['plugin_fields']['dnsmanager'] = Account::class;
+    }
 }
 
-/**
- * Informations du plugin
- */
 function plugin_version_dnsmanager(): array
 {
     return [
-        'name'         => 'DNSManage',
-        'version'      => PLUGIN_DNSMANAGE_VERSION,
-        'author'       => 'DNSManage',
+        'name'         => 'DNS Hébergeurs',
+        'version'      => PLUGIN_DNSMANAGER_VERSION,
+        'author'       => 'L. Berthaud, Claude (Anthropic)',
         'license'      => 'GPL v2+',
-        'homepage'     => '',
+        'homepage'     => 'https://github.com/belu33fr/dnsmanager',
+        'bugtracker'   => 'https://github.com/belu33fr/dnsmanager/issues',
         'requirements' => [
             'glpi' => [
-                'min' => PLUGIN_DNSMANAGE_MIN_GLPI,
-                'max' => PLUGIN_DNSMANAGE_MAX_GLPI,
+                'min' => PLUGIN_DNSMANAGER_MIN_GLPI,
+                'max' => PLUGIN_DNSMANAGER_MAX_GLPI,
             ],
-            'php'  => [
-                'min' => '8.1',
+            'php' => [
+                'min'  => '8.1',
                 'exts' => ['curl', 'json', 'openssl'],
             ],
         ],
