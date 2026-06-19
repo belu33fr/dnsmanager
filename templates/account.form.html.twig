@@ -112,20 +112,20 @@
             <div class="alert alert-info"><i class="ti ti-loader me-2"></i>Chargement...</div>
         </div>
 
+        {% if item.fields['id'] > 0 %}
         <div class="col-12 mb-3 d-flex gap-2 flex-wrap">
-            <button type="button" id="dns-btn-test" class="btn btn-info">
+            <button type="button" id="dns-btn-test" class="btn btn-primary">
                 <i class="ti ti-plug me-1"></i>{{ __('Tester la connexion', 'dnsmanager') }}
             </button>
-            {% if item.fields['id'] > 0 %}
             <a href="{{ webdir }}/front/domain.import.php?account_id={{ item.fields['id'] }}"
                class="btn btn-primary" id="dns-btn-sync-interactive">
                 <i class="ti ti-world-upload me-1"></i>{{ __('Analyser et synchroniser', 'dnsmanager') }}
             </a>
-            <button type="button" id="dns-btn-sync" class="btn btn-outline-primary">
+            <button type="button" id="dns-btn-sync" class="btn btn-primary">
                 <i class="ti ti-refresh me-1"></i>{{ __('Sync rapide', 'dnsmanager') }}
             </button>
-            {% endif %}
         </div>
+        {% endif %}
         <div id="dns-action-result" class="col-12 mb-3"></div>
 
     {% else %}

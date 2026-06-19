@@ -54,7 +54,7 @@ function plugin_init_dnsmanager(): void
     }
 
     // Onglet "DNS Sync" dans les profils
-    Plugin::registerClass(Right::class, ['addtabon' => '\Profile']);
+    Plugin::registerClass(Right::class, ['addtabon' => 'Profile']);
 
     $PLUGIN_HOOKS[Hooks::POST_ITEM_FORM]['dnsmanager'] = 'plugin_dnsmanager_post_item_form';
 
@@ -79,6 +79,8 @@ function plugin_version_dnsmanager(): array
         'license'      => 'GPL v2+',
         'homepage'     => 'https://github.com/belu33fr/dnsmanager',
         'bugtracker'   => 'https://github.com/belu33fr/dnsmanager/issues',
+        'readme'       => 'https://github.com/belu33fr/dnsmanager/blob/main/docs/user-guide.md',
+        'logo'         => '/plugins/dnsmanager/pics/icon.png',
         'requirements' => [
             'glpi' => [
                 'min' => PLUGIN_DNSMANAGER_MIN_GLPI,

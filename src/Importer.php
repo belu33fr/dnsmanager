@@ -84,6 +84,7 @@ class Importer
         $domainInfo = $this->provider->getDomainInfo($providerRef);
         $this->updateGlpiDomainDates($glpiDomainId, $glpiDomain, $domainInfo);
         $this->updateFacturation($glpiDomainId, $domainInfo);
+        $this->updateContacts($glpiDomainId, $domainInfo);
         $this->updateAdministratifDomaine($glpiDomainId, (int)$glpiDomain['entities_id']);
 
         // Sync des enregistrements
@@ -528,15 +529,75 @@ class Importer
             // Le code continue pour créer un nouveau record
         }
 
-        $ttl = (int)($recordData['ttl'] ?? 0);
+        $ttl       = (int)($recordData['ttl'] ?? 0);
+        $typeId    = $this->resolveRecordType($recordData['type']);
+        $recordName = $recordData['name'];
+        $recordData_ = $recordData['target'];
+
+        // Chercher un record GLPI existant sans mapping (orphelin)
+        // pour éviter les doublons
+        $orphan = $DB->request([
+            'FROM'  => 'glpi_domainrecords',
+            'WHERE' => [
+                'domains_id'           => $glpiDomainId,
+                'name'                 => $recordName,
+                'domainrecordtypes_id' => $typeId,
+                'data'                 => $recordData_,
+                'is_deleted'           => 0,
+            ],
+        ])->current();
+
+        if ($orphan) {
+            // Record orphelin trouvé → créer juste le mapping
+            $id = (int)$orphan['id'];
+            $DB->insert('glpi_plugin_dnsmanager_records', [
+                'accounts_id'      => $accountId,
+                'domainrecords_id' => $id,
+                'provider_ref'     => $providerRef,
+                'is_editable'      => 0,
+                'last_sync_at'     => date('Y-m-d H:i:s'),
+                'sync_status'      => 'created_from_provider',
+            ]);
+            $this->recordsAdded++;
+            return;
+        }
+
+        // Chercher aussi en corbeille
+        $orphanDeleted = $DB->request([
+            'FROM'  => 'glpi_domainrecords',
+            'WHERE' => [
+                'domains_id'           => $glpiDomainId,
+                'name'                 => $recordName,
+                'domainrecordtypes_id' => $typeId,
+                'data'                 => $recordData_,
+                'is_deleted'           => 1,
+            ],
+        ])->current();
+
+        if ($orphanDeleted) {
+            // Restaurer le record et créer le mapping
+            $record = new \DomainRecord();
+            $record->restore(['id' => $orphanDeleted['id']]);
+            $id = (int)$orphanDeleted['id'];
+            $DB->insert('glpi_plugin_dnsmanager_records', [
+                'accounts_id'      => $accountId,
+                'domainrecords_id' => $id,
+                'provider_ref'     => $providerRef,
+                'is_editable'      => 0,
+                'last_sync_at'     => date('Y-m-d H:i:s'),
+                'sync_status'      => 'updated_from_provider',
+            ]);
+            $this->recordsUpdated++;
+            return;
+        }
 
         $record = new \DomainRecord();
         $id = $record->add([
             'domains_id'           => $glpiDomainId,
-            'name'                 => $recordData['name'],
-            'domainrecordtypes_id' => $this->resolveRecordType($recordData['type']),
+            'name'                 => $recordName,
+            'domainrecordtypes_id' => $typeId,
             'ttl'                  => $ttl,
-            'data'                 => $recordData['target'],
+            'data'                 => $recordData_,
             'comment'              => 'Importé via DNSManage',
             'entities_id'          => $this->account['entities_id'] ?? 0,
         ]);

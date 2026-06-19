@@ -30,6 +30,8 @@
             btn.disabled = false;
             if (d.success) {
                 result.innerHTML = '<span class="badge bg-success me-2"><i class="ti ti-check me-1"></i>' + d.message + '</span>';
+                // Recharger la page après 1.5s pour afficher les contacts mis à jour
+                setTimeout(function() { window.location.reload(); }, 1500);
             } else {
                 result.innerHTML = '<span class="badge bg-danger me-2"><i class="ti ti-x me-1"></i>' + d.message + '</span>';
             }

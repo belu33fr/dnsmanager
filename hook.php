@@ -184,6 +184,12 @@ function plugin_dnsmanager_uninstall(): bool
 {
     global $DB;
 
+    // Vider les champs pointant vers notre plugin
+    $afTable = 'glpi_plugin_fields_domainadministratifdomaines';
+    if ($DB->tableExists($afTable) && $DB->fieldExists($afTable, 'plugin_dnsmanager_accounts_id_comptedhbergeurfield')) {
+        $DB->update($afTable, ['plugin_dnsmanager_accounts_id_comptedhbergeurfield' => 0], [true]);
+    }
+
     $tables = [
         'glpi_plugin_dnsmanager_records',
         'glpi_plugin_dnsmanager_domains',
@@ -231,6 +237,12 @@ function plugin_dnsmanager_migrate(): void
         'renewal_months'   => "ALTER TABLE `$accountTable` ADD COLUMN `renewal_months` TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER `domain_whitelist`",
         'suppliers_id'     => "ALTER TABLE `$accountTable` ADD COLUMN `suppliers_id` INT UNSIGNED NOT NULL DEFAULT 0 AFTER `renewal_months`",
         'is_recursive'     => "ALTER TABLE `$accountTable` ADD COLUMN `is_recursive` TINYINT(1) NOT NULL DEFAULT 0 AFTER `entities_id`",
+        'plugin_accounts_accounts_id_administrateurfield' => "ALTER TABLE `$accountTable` ADD COLUMN `plugin_accounts_accounts_id_administrateurfield` INT(10) UNSIGNED NOT NULL DEFAULT 0",
+        'plugin_accounts_accounts_id_technicienfield'     => "ALTER TABLE `$accountTable` ADD COLUMN `plugin_accounts_accounts_id_technicienfield` INT(10) UNSIGNED NOT NULL DEFAULT 0",
+        'plugin_accounts_accounts_id_financierfield'      => "ALTER TABLE `$accountTable` ADD COLUMN `plugin_accounts_accounts_id_financierfield` INT(10) UNSIGNED NOT NULL DEFAULT 0",
+        'users_id_proprietairefield'                      => "ALTER TABLE `$accountTable` ADD COLUMN `users_id_proprietairefield` INT(10) UNSIGNED NOT NULL DEFAULT 0",
+        'groups_id'                                       => "ALTER TABLE `$accountTable` ADD COLUMN `groups_id` INT(10) UNSIGNED NOT NULL DEFAULT 0",
+        'groups_id_tech'                                  => "ALTER TABLE `$accountTable` ADD COLUMN `groups_id_tech` INT(10) UNSIGNED NOT NULL DEFAULT 0",
     ];
 
     foreach ($cols as $col => $sql) {
@@ -371,7 +383,37 @@ function plugin_dnsmanager_post_item_form(array $params): void
 
     echo "</div>"; // card-body
     echo "</div>"; // card
-    echo "<script src='{$webdir}/public/domain.sync.js'></script>";
+    echo '<script>
+    (function() {
+        var btn = document.getElementById("dns-domain-sync-btn");
+        if (!btn) return;
+        btn.addEventListener("click", function() {
+            var result = document.getElementById("dns-domain-sync-result");
+            var meta = document.querySelector("meta[property=\'glpi:csrf_token\']");
+            var csrf = meta ? meta.content : "";
+            btn.disabled = true;
+            result.innerHTML = "<span class=\'badge bg-info me-2\'>En cours...</span>";
+            fetch(btn.dataset.syncUrl, {
+                method: "POST",
+                headers: {"Content-Type":"application/x-www-form-urlencoded","X-Glpi-Csrf-Token":csrf,"X-Requested-With":"XMLHttpRequest"},
+                body: new URLSearchParams({action:"sync_domain",account_id:btn.dataset.accountId,domain_ref:btn.dataset.domainRef})
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                btn.disabled = false;
+                if (d.success) {
+                    window.location.reload();
+                } else {
+                    result.innerHTML = "<span class=\'badge bg-danger me-2\'>" + d.message + "</span>";
+                }
+            })
+            .catch(function() {
+                btn.disabled = false;
+                result.innerHTML = "<span class=\'badge bg-danger me-2\'>Erreur.</span>";
+            });
+        });
+    })();
+    </script>';
 }
 
 /**
@@ -386,7 +428,7 @@ function plugin_dnsmanager_init_fields(): void
     if (!\Plugin::isPluginActive('fields')) return;
 
     // Tables du plugin Fields
-    $tContainers = 'glpi_plugin_fields_fieldcontainers';
+    $tContainers = 'glpi_plugin_fields_containers';
     $tFields     = 'glpi_plugin_fields_fields';
 
     if (!$DB->tableExists($tContainers) || !$DB->tableExists($tFields)) return;
@@ -436,23 +478,27 @@ function plugin_dnsmanager_init_fields(): void
 
     foreach ($blocks as $blockDef) {
         // Chercher le bloc par nom ET itemtype
-        $container = $DB->request([
-            'FROM'  => $tContainers,
-            'WHERE' => ['name' => $blockDef['name'], 'itemtype' => $blockDef['itemtype']],
-        ])->current();
+        // Chercher par label (nom lisible) car 'name' est le slug sans espaces
+        $container = null;
+        foreach ($DB->request(['FROM' => $tContainers, 'WHERE' => ['label' => $blockDef['name']]]) as $row) {
+            $itemtypes = json_decode($row['itemtypes'] ?? '[]', true);
+            if (in_array($blockDef['itemtype'], (array)$itemtypes)) {
+                $container = $row;
+                break;
+            }
+        }
 
         if (!$container) {
             // Créer le bloc
             $DB->insert($tContainers, [
-                'name'          => $blockDef['name'],
-                'itemtype'      => $blockDef['itemtype'],
-                'type'          => $blockDef['type'],
-                'subtype'       => null,
-                'is_active'     => 1,
-                'is_recursive'  => 1,
-                'entities_id'   => 0,
-                'date_creation' => date('Y-m-d H:i:s'),
-                'date_mod'      => date('Y-m-d H:i:s'),
+                'name'        => $blockDef['name'],
+                'label'       => $blockDef['name'],
+                'itemtypes'   => json_encode([$blockDef['itemtype']]),
+                'type'        => $blockDef['type'],
+                'subtype'     => null,
+                'is_active'   => 1,
+                'is_recursive' => 1,
+                'entities_id' => 0,
             ]);
             $containerId = (int)$DB->insertId();
 
@@ -493,8 +539,8 @@ function plugin_dnsmanager_init_fields(): void
                     'default_value'               => $fieldDef['default_value'],
                     'mandatory'                   => 0,
                     'is_active'                   => 1,
-                    'date_creation'               => date('Y-m-d H:i:s'),
-                    'date_mod'                    => date('Y-m-d H:i:s'),
+                    'is_readonly'                 => 0,
+                    'multiple'                    => 0,
                 ]);
 
                 // Ajouter la colonne dans la table du bloc
