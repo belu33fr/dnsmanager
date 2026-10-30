@@ -357,6 +357,9 @@ class RecordSync
      */
     private static function shouldHandle(int $domainsId): bool
     {
+        // Interrupteur général (paramétrage du plugin) : coupé = aucun verrou, aucun push.
+        if (!PluginConfig::isPushToProviderEnabled()) return false;
+
         if (DomainLock::isSyncInProgress($domainsId)) return false;
 
         $accountId = self::resolveAccountForDomain($domainsId);
