@@ -151,37 +151,101 @@ class DomainImporter
     {
         global $DB;
 
-        $labels  = PluginConfig::getEntityLabels();
-        $parents = [];
+        $labels   = PluginConfig::getEntityLabels();
+        $entities = [];
 
-        if (empty($labels)) return $parents;
+        if (empty($labels)) return $entities;
 
-        // Chercher les entités dont le nom correspond aux intitulés
+        // Logique 1 : parents des entités dont le nom est dans entity_labels
         foreach ($DB->request([
             'FROM'  => 'glpi_entities',
             'WHERE' => ['name' => $labels],
         ]) as $entity) {
             $parentId = (int)$entity['entities_id'];
-            if ($parentId < 0) continue; // entité racine sans parent
-
-            // Récupérer le parent
+            if ($parentId < 0) continue;
             $parent = $DB->request([
                 'FROM'  => 'glpi_entities',
                 'WHERE' => ['id' => $parentId],
             ])->current();
-
-            if ($parent && !isset($parents[$parentId])) {
-                $parents[$parentId] = [
+            if ($parent && !isset($entities[$parentId])) {
+                $entities[$parentId] = [
                     'id'   => $parentId,
                     'name' => $parent['completename'] ?? $parent['name'],
                 ];
             }
         }
 
-        // Trier par nom
-        usort($parents, fn($a, $b) => strcmp($a['name'], $b['name']));
+        // Logique 2 : enfants directs des entités dont le nom est dans entity_children_labels
+        $childrenLabels = PluginConfig::getEntityChildrenLabels();
+        if (!empty($childrenLabels)) {
+            foreach ($DB->request([
+                'FROM'  => 'glpi_entities',
+                'WHERE' => ['name' => $childrenLabels],
+            ]) as $entity) {
+                $entityId = (int)$entity['id'];
+                foreach ($DB->request([
+                    'FROM'  => 'glpi_entities',
+                    'WHERE' => ['entities_id' => $entityId],
+                ]) as $child) {
+                    $childId = (int)$child['id'];
+                    if (!isset($entities[$childId])) {
+                        $entities[$childId] = [
+                            'id'   => $childId,
+                            'name' => $child['completename'] ?? $child['name'],
+                        ];
+                    }
+                }
+            }
+        }
 
-        return $parents;
+        // Trier par nom
+        usort($entities, fn($a, $b) => strcmp($a['name'], $b['name']));
+
+        return $entities;
+    }
+
+    /**
+     * Retourne une condition SQL structurelle (parents/entities_id) pour filtrer
+     * dynamiquement les entités importables — contrairement à getImportableEntities()
+     * qui résout une liste figée d'IDs, cette condition reste valide même pour
+     * des entités créées après coup (nouveaux enfants des entités "intermédiaires").
+     */
+    public static function getImportableEntitiesCondition(): array
+    {
+        global $DB;
+
+        $labels = PluginConfig::getEntityLabels();
+        $or = [];
+
+        // Logique 1 : parents des entités nommées dans entity_labels (liste figée, stable)
+        $parentIds = [];
+        if (!empty($labels)) {
+            foreach ($DB->request(['FROM' => 'glpi_entities', 'WHERE' => ['name' => $labels]]) as $entity) {
+                $parentId = (int)$entity['entities_id'];
+                if ($parentId >= 0) $parentIds[] = $parentId;
+            }
+        }
+        if (!empty($parentIds)) {
+            $or[] = ['id' => array_unique($parentIds)];
+        }
+
+        // Logique 2 : enfants directs des entités nommées dans entity_children_labels
+        // Filtre structurel sur entities_id (parent) -> inclut automatiquement
+        // les entités créées après coup, tant qu'elles ont ce parent.
+        $childrenLabels = PluginConfig::getEntityChildrenLabels();
+        $intermediateIds = [];
+        if (!empty($childrenLabels)) {
+            foreach ($DB->request(['FROM' => 'glpi_entities', 'WHERE' => ['name' => $childrenLabels]]) as $entity) {
+                $intermediateIds[] = (int)$entity['id'];
+            }
+        }
+        if (!empty($intermediateIds)) {
+            $or[] = ['entities_id' => array_unique($intermediateIds)];
+        }
+
+        if (empty($or)) return [];
+
+        return ['OR' => $or];
     }
 
     /**
@@ -246,31 +310,43 @@ class DomainImporter
             }
         }
 
-        // Renseigner le fournisseur dans Additional Fields si la table existe
+        // Renseigner le fournisseur (et le TTL par défaut si disponible) dans Additional Fields
         $afTable = 'glpi_plugin_fields_domaindomaineadministratifcomplements';
         if ($DB->tableExists($afTable) && !empty($this->account['suppliers_id'])) {
+            $updateData = ['suppliers_id_fournisseurfieldtwo' => (int)$this->account['suppliers_id']];
+
+            // TTL par défaut de la zone (SOA TTL côté OVH, null si non supporté)
+            $ttlDefault = null;
+            if ($DB->fieldExists($afTable, 'ttldfautfield')) {
+                try {
+                    $ttlDefault = $this->provider->getZoneDefaultTtl($providerRef);
+                } catch (\Exception) {
+                    $ttlDefault = null;
+                }
+            }
+            if ($ttlDefault !== null) {
+                $updateData['ttldfautfield'] = $ttlDefault;
+            }
+
             $existing = $DB->request(['FROM' => $afTable, 'WHERE' => ['items_id' => (int)$id]])->current();
             if ($existing) {
-                $DB->update($afTable,
-                    ['suppliers_id_fournisseurfieldtwo' => (int)$this->account['suppliers_id']],
-                    ['items_id' => (int)$id]
-                );
+                $DB->update($afTable, $updateData, ['items_id' => (int)$id]);
             } else {
-                $DB->insert($afTable, [
-                    'items_id'                        => (int)$id,
-                    'itemtype'                        => 'Domain',
-                    'plugin_fields_containers_id'     => 13,
-                    'entities_id'                     => (int)$this->account['entities_id'],
-                    'is_recursive'                    => 0,
-                    'nepasrenouvelerfield'             => 0,
-                    'avertifield'                     => 0,
-                    'suppliers_id_fournisseurfieldtwo' => (int)$this->account['suppliers_id'],
-                ]);
+                $DB->insert($afTable, array_merge([
+                    'items_id'                     => (int)$id,
+                    'itemtype'                     => 'Domain',
+                    'plugin_fields_containers_id'  => 13,
+                    'entities_id'                  => (int)$this->account['entities_id'],
+                    'is_recursive'                 => 0,
+                    'nepasrenouvelerfield'          => 0,
+                    'avertifield'                  => 0,
+                ], $updateData));
             }
         }
 
         // Mettre à jour le bloc Administratif Domaine (Fields)
-        $this->updateAdministratifDomaine((int)$id, $entitiesId);
+        $registrarContacts = $this->resolveRegistrarContacts($domainInfo);
+        $this->updateAdministratifDomaine((int)$id, $entitiesId, $registrarContacts);
 
         // Mettre à jour les groupes
         $this->updateGroups((int)$id);
@@ -317,24 +393,29 @@ class DomainImporter
     {
         global $DB;
 
-        // Mettre les enregistrements DNS en corbeille
-        foreach ($DB->request(['FROM' => 'glpi_domainrecords', 'WHERE' => ['domains_id' => $glpiDomainId, 'is_deleted' => 0]]) as $record) {
-            $dr = new \DomainRecord();
-            $dr->delete(['id' => $record['id']]);
+        DomainLock::markSyncInProgress($glpiDomainId);
+        try {
+            // Mettre les enregistrements DNS en corbeille
+            foreach ($DB->request(['FROM' => 'glpi_domainrecords', 'WHERE' => ['domains_id' => $glpiDomainId, 'is_deleted' => 0]]) as $record) {
+                $dr = new \DomainRecord();
+                $dr->delete(['id' => $record['id']]);
+            }
+
+            // Mettre le domaine en corbeille
+            $domain = new Domain();
+            $domain->delete(['id' => $glpiDomainId]);
+
+            // Supprimer le mapping
+            $DB->delete('glpi_plugin_dnsmanager_domains', [
+                'accounts_id'  => (int)$this->account['id'],
+                'provider_ref' => $providerRef,
+            ]);
+            $DB->delete('glpi_plugin_dnsmanager_records', [
+                'accounts_id' => (int)$this->account['id'],
+            ]);
+        } finally {
+            DomainLock::unmarkSyncInProgress($glpiDomainId);
         }
-
-        // Mettre le domaine en corbeille
-        $domain = new Domain();
-        $domain->delete(['id' => $glpiDomainId]);
-
-        // Supprimer le mapping
-        $DB->delete('glpi_plugin_dnsmanager_domains', [
-            'accounts_id'  => (int)$this->account['id'],
-            'provider_ref' => $providerRef,
-        ]);
-        $DB->delete('glpi_plugin_dnsmanager_records', [
-            'accounts_id' => (int)$this->account['id'],
-        ]);
     }
 
     private function getInternetTypeId(): int
@@ -385,7 +466,101 @@ class DomainImporter
     /**
      * Met à jour le bloc "Administratif Domaine" (Fields) pour un domaine
      */
-    public function updateAdministratifDomaine(int $glpiDomainId, int $entitiesId): void
+    /**
+     * Résout les contacts registrar (nichandle OVH, etc.) vers des IDs
+     * GlpiPlugin\Accounts\Account. Crée automatiquement le compte s'il
+     * n'existe pas encore (nom = identifiant registrar).
+     *
+     * @return array<string,int> fieldName => accounts_id résolu
+     */
+    /** Cache mémoire (le temps d'un import) pour éviter de requêter à chaque contact résolu */
+    private ?int $cachedContactStateId = null;
+    private ?int $cachedContactTypeId  = null;
+
+    /** Statut "Actif" (glpi_plugin_accounts_accountstates), résolu par nom pour rester portable */
+    private function getDefaultAccountStateId(): int
+    {
+        global $DB;
+        if ($this->cachedContactStateId !== null) return $this->cachedContactStateId;
+
+        $row = $DB->request(['FROM' => 'glpi_plugin_accounts_accountstates', 'WHERE' => ['name' => 'Actif']])->current();
+        $this->cachedContactStateId = $row ? (int)$row['id'] : 0;
+        return $this->cachedContactStateId;
+    }
+
+    /** Type "Fournisseur" (glpi_plugin_accounts_accounttypes), résolu par nom pour rester portable */
+    private function getDefaultAccountTypeId(): int
+    {
+        global $DB;
+        if ($this->cachedContactTypeId !== null) return $this->cachedContactTypeId;
+
+        $row = $DB->request(['FROM' => 'glpi_plugin_accounts_accounttypes', 'WHERE' => ['name' => PluginConfig::getContactAccountType()]])->current();
+        $this->cachedContactTypeId = $row ? (int)$row['id'] : 0;
+        return $this->cachedContactTypeId;
+    }
+
+    private function resolveRegistrarContacts(array $domainInfo): array
+    {
+        global $DB;
+        $resolved = [];
+
+        if (!$DB->tableExists('glpi_plugin_accounts_accounts')) return $resolved;
+
+        $map = [
+            'admin_contact'   => 'plugin_accounts_accounts_id_administrateurfield',
+            'tech_contact'    => 'plugin_accounts_accounts_id_technicienfield',
+            'billing_contact' => 'plugin_accounts_accounts_id_financierfield',
+        ];
+
+        foreach ($map as $infoKey => $fieldName) {
+            $identity = trim($domainInfo[$infoKey] ?? '');
+            if ($identity === '') continue;
+            $login = trim($domainInfo[$infoKey . '_login'] ?? '');
+
+            $account = $DB->request([
+                'FROM'  => 'glpi_plugin_accounts_accounts',
+                'WHERE' => ['name' => $identity, 'is_deleted' => 0],
+            ])->current();
+
+            if ($account) {
+                $resolved[$fieldName] = (int)$account['id'];
+                continue;
+            }
+
+            try {
+                $accountClass = '\\GlpiPlugin\\Accounts\\Account';
+                if (class_exists($accountClass)) {
+                    $newAccount = new $accountClass();
+                    $addData = [
+                        'name'                             => $identity,
+                        'entities_id'                      => (int)($this->account['entities_id'] ?? 0),
+                        'comment'                          => 'Créé automatiquement depuis le contact registrar (DNSManage)',
+                        'plugin_accounts_accountstates_id'  => $this->getDefaultAccountStateId(),
+                        'plugin_accounts_accounttypes_id'   => $this->getDefaultAccountTypeId(),
+                        'groups_id'                         => (int)($this->account['contact_groups_id'] ?? 0),
+                    ];
+                    if ($login !== '') {
+                        $addData['login'] = $login;
+                    }
+                    $newId = $newAccount->add($addData);
+                    if ($newId) {
+                        $resolved[$fieldName] = (int)$newId;
+                        error_log("DNSManage: compte contact '$identity' créé avec succès, id=$newId");
+                    } else {
+                        error_log("DNSManage: échec silencieux création compte contact '$identity' - add() a retourné une valeur fausse (droits, champ requis manquant ?)");
+                    }
+                } else {
+                    error_log("DNSManage: classe $accountClass introuvable - plugin Accounts absent ou inactif ?");
+                }
+            } catch (\Exception $e) {
+                error_log('DNSManage: échec création compte contact "' . $identity . '" - ' . $e->getMessage());
+            }
+        }
+
+        return $resolved;
+    }
+
+    public function updateAdministratifDomaine(int $glpiDomainId, int $entitiesId, array $registrarContacts = []): void
     {
         global $DB;
 
@@ -403,7 +578,16 @@ class DomainImporter
         ];
 
         foreach ($lockMap as $field => $lockField) {
+            // 1. Ne pas écraser si verrouillé
             if ($existing && !empty($existing[$lockField])) continue;
+
+            // 2. Priorité au contact registrar résolu
+            if (isset($registrarContacts[$field])) {
+                $data[$field] = $registrarContacts[$field];
+                continue;
+            }
+
+            // 3. Sinon, valeur par défaut du compte provider
             $data[$field] = (int)($this->account[$field] ?? 0);
         }
 

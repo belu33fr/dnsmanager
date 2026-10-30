@@ -131,21 +131,32 @@ class Account extends CommonDBTM
             ? '\GlpiPlugin\Accounts\Account'
             : null;
 
-        $twig_vars = [
-            'item'            => $this,
-            'params'          => $options,
-            'providers'       => $providers,
-            'allProviderData' => json_encode($allProviderData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT),
-            'credentials'     => json_encode($credentials,    JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT),
-            'currentEndpoint' => addslashes($this->fields['endpoint'] ?? ''),
-            'webdir'          => Plugin::getWebDir('dnsmanager'),
-            'can_sync'        => Right::canSync(),
-            'accounts_class'  => $accountsClass,
-        ];
+        // Filtrer les dropdowns Administrateur/Technicien/Financier par type de compte
+        // (configurable dans le paramétrage du plugin, "Fournisseur" par défaut)
+        $accountsTypeCondition = [];
+        if ($accountsClass) {
+            global $DB;
+            $typeRow = $DB->request([
+                'FROM'  => 'glpi_plugin_accounts_accounttypes',
+                'WHERE' => ['name' => PluginConfig::getContactAccountType()],
+            ])->current();
+            if ($typeRow) {
+                $accountsTypeCondition = ['plugin_accounts_accounttypes_id' => (int)$typeRow['id']];
+            }
+        }
 
-        error_log("DNSManage Twig vars: item.id=" . ($this->fields['id'] ?? 'NULL')
-            . " providers=" . count($providers)
-            . " fields=" . json_encode(array_keys($this->fields)));
+        $twig_vars = [
+            'item'                   => $this,
+            'params'                 => $options,
+            'providers'              => $providers,
+            'allProviderData'        => json_encode($allProviderData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT),
+            'credentials'            => json_encode($credentials,    JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT),
+            'currentEndpoint'        => addslashes($this->fields['endpoint'] ?? ''),
+            'webdir'                 => Plugin::getWebDir('dnsmanager'),
+            'can_sync'               => Right::canSync(),
+            'accounts_class'         => $accountsClass,
+            'accounts_type_condition' => $accountsTypeCondition,
+        ];
 
         \Glpi\Application\View\TemplateRenderer::getInstance()->display(
             '@dnsmanager/account.form.html.twig',
@@ -257,6 +268,15 @@ class Account extends CommonDBTM
                 'jointype'  => 'field',
                 'linkfield' => 'suppliers_id',
             ],
+        ];
+
+        $tab[] = [
+            'id'            => 18,
+            'table'         => self::getTable(),
+            'field'         => 'provider_key_name',
+            'name'          => __('Nom de la clé chez le provider', 'dnsmanager'),
+            'datatype'      => 'string',
+            'massiveaction' => false,
         ];
 
         $tab[] = [
@@ -372,6 +392,8 @@ class Account extends CommonDBTM
                         // Mode interactif = false pour les actions massives
                         // Les nouveaux domaines sont ignorés et signalés
                         $importer = new Importer($id, false);
+                        // Action massive déclenchée par un utilisateur : restreindre à son entité active
+                        $importer->restrictToActiveEntities();
                         $result   = $importer->sync();
                         $ok++;
 
@@ -503,5 +525,24 @@ class Account extends CommonDBTM
             $data['credentials'],
             $data['account']['endpoint']
         );
+    }
+
+    /**
+     * Indique si la modification bidirectionnelle des enregistrements DNS
+     * est activée pour ce compte. Réservée pour l'instant au provider OVH.
+     */
+    public static function hasBidirectionalSync(int $accountId): bool
+    {
+        global $DB;
+        $row = $DB->request([
+            'FROM'  => self::getTable(),
+            'WHERE' => ['id' => $accountId],
+        ])->current();
+
+        if (!$row) return false;
+        if (empty($row['allow_bidirectional_sync'])) return false;
+
+        // Périmètre actuel : OVH uniquement
+        return ($row['provider_type'] ?? '') === 'ovh';
     }
 }

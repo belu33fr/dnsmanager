@@ -36,7 +36,7 @@ class PluginConfig extends CommonDBTM
     public static function save(array $input): void
     {
         global $DB;
-        $allowed = ['entity_labels'];
+        $allowed = ['entity_labels', 'entity_children_labels', 'contact_account_type', 'domain_lock_timeout'];
         foreach ($allowed as $key) {
             if (!isset($input[$key])) continue;
             $existing = $DB->request([
@@ -56,6 +56,35 @@ class PluginConfig extends CommonDBTM
     {
         $val = self::getConfig('entity_labels', 'Sites;Financier');
         return array_filter(array_map('trim', explode(';', $val)));
+    }
+
+    public static function getEntityChildrenLabels(): array
+    {
+        $val = self::getConfig('entity_children_labels', '');
+        if (empty(trim($val))) return [];
+        return array_filter(array_map('trim', explode(';', $val)));
+    }
+
+    /**
+     * Nom du type de compte (glpi_plugin_accounts_accounttypes) utilisé pour
+     * filtrer les dropdowns Administrateur/Technicien/Financier et pour la
+     * création automatique de comptes contact depuis le registrar.
+     */
+    public static function getContactAccountType(): string
+    {
+        $val = trim(self::getConfig('contact_account_type', 'Fournisseur'));
+        return $val !== '' ? $val : 'Fournisseur';
+    }
+
+    /**
+     * Timeout (en secondes) du verrou par domaine pour la modification
+     * bidirectionnelle des enregistrements DNS. Configurable car peut
+     * varier selon l'environnement et le provider (lenteur API, charge serveur).
+     */
+    public static function getDomainLockTimeout(): int
+    {
+        $val = (int)self::getConfig('domain_lock_timeout', 20);
+        return $val > 0 ? $val : 20;
     }
 
     public static function showConfigForm(): void
@@ -81,14 +110,65 @@ class PluginConfig extends CommonDBTM
 
         // Champ entity_labels
         $entityLabels = self::getConfig('entity_labels', 'Sites;Financier');
+        $helpEntityLabels = __('Entités dont les parents sont considérés comme étant le lieu d\'import des domaines. Exemple : GAFA > Sites > Bordeaux, et qu\'on veut GAFA (pas Sites et en dessous) : il faut mettre "Sites" dans ce champ.', 'dnsmanager');
         echo "<div class='mb-3 row'>";
-        echo "<label class='col-sm-6 col-form-label'>" . __('Intitulés entités import (séparés par ;)', 'dnsmanager') . "</label>";
-        echo "<div class='col-sm-6'>";
+        echo "<label class='col-xxl-4 col-form-label'>";
+        echo __('Intitulés entités import (séparés par ;)', 'dnsmanager');
+        echo " <i class='ti ti-info-circle text-muted' data-bs-toggle='tooltip' title='" . htmlspecialchars($helpEntityLabels) . "'></i>";
+        echo "</label>";
+        echo "<div class='col-xxl-8'>";
         if ($canedit) {
             echo "<input type='text' name='entity_labels' class='form-control' value='" . htmlspecialchars($entityLabels) . "'>";
-            echo "<div class='form-text text-muted'>" . __('Ex: Sites;Financier — entités dont le parent sera proposé à l\'import', 'dnsmanager') . "</div>";
         } else {
             echo "<span class='form-control-plaintext'>" . htmlspecialchars($entityLabels) . "</span>";
+        }
+        echo "</div></div>";
+
+        // Champ entity_children_labels
+        $entityChildrenLabels = self::getConfig('entity_children_labels', '');
+        $helpEntityChildrenLabels = __('Entités dont les enfants sont considérés comme étant le lieu d\'import des domaines. Exemple : GAFA > Sites > Bordeaux, et qu\'on veut Bordeaux (pas Sites et au-dessus) : il faut mettre "Sites" dans ce champ. Si "Sites" est aussi marqué dans Intitulés entités import, alors GAFA et Bordeaux seront tous les deux proposés. S\'applique à toute l\'arborescence des entités.', 'dnsmanager');
+        echo "<div class='mb-3 row'>";
+        echo "<label class='col-xxl-4 col-form-label'>";
+        echo __('Intitulés enfants import (séparés par ;)', 'dnsmanager');
+        echo " <i class='ti ti-info-circle text-muted' data-bs-toggle='tooltip' title='" . htmlspecialchars($helpEntityChildrenLabels) . "'></i>";
+        echo "</label>";
+        echo "<div class='col-xxl-8'>";
+        if ($canedit) {
+            echo "<input type='text' name='entity_children_labels' class='form-control' value='" . htmlspecialchars($entityChildrenLabels) . "'>";
+        } else {
+            echo "<span class='form-control-plaintext'>" . htmlspecialchars($entityChildrenLabels) . "</span>";
+        }
+        echo "</div></div>";
+
+        // Champ contact_account_type
+        $contactAccountType = self::getConfig('contact_account_type', 'Fournisseur');
+        $helpContactAccountType = __('Nom exact du type (Configuration → Comptes → Type de compte). Utilisé pour filtrer les listes Administrateur/Technicien/Financier et pour la création automatique de comptes contact.', 'dnsmanager');
+        echo "<div class='mb-3 row'>";
+        echo "<label class='col-xxl-4 col-form-label'>";
+        echo __('Type de compte pour les contacts registrar', 'dnsmanager');
+        echo " <i class='ti ti-info-circle text-muted' data-bs-toggle='tooltip' title='" . htmlspecialchars($helpContactAccountType) . "'></i>";
+        echo "</label>";
+        echo "<div class='col-xxl-8'>";
+        if ($canedit) {
+            echo "<input type='text' name='contact_account_type' class='form-control' value='" . htmlspecialchars($contactAccountType) . "'>";
+        } else {
+            echo "<span class='form-control-plaintext'>" . htmlspecialchars($contactAccountType) . "</span>";
+        }
+        echo "</div></div>";
+
+        // Champ domain_lock_timeout
+        $lockTimeout = self::getConfig('domain_lock_timeout', 20);
+        $helpLockTimeout = __('Délai maximal d\'attente lors d\'un conflit entre synchronisation et modification manuelle d\'un enregistrement DNS (modification bidirectionnelle). Défaut : 20s.', 'dnsmanager');
+        echo "<div class='mb-3 row'>";
+        echo "<label class='col-xxl-4 col-form-label'>";
+        echo __('Timeout verrou domaine (secondes)', 'dnsmanager');
+        echo " <i class='ti ti-info-circle text-muted' data-bs-toggle='tooltip' title='" . htmlspecialchars($helpLockTimeout) . "'></i>";
+        echo "</label>";
+        echo "<div class='col-xxl-8'>";
+        if ($canedit) {
+            echo "<input type='number' min='1' name='domain_lock_timeout' class='form-control' style='max-width:150px' value='" . htmlspecialchars($lockTimeout) . "'>";
+        } else {
+            echo "<span class='form-control-plaintext'>" . htmlspecialchars($lockTimeout) . "</span>";
         }
         echo "</div></div>";
 
@@ -142,5 +222,15 @@ class PluginConfig extends CommonDBTM
 
         echo "</div></div>";
         echo "</div></div></div>";
+
+        // Filet de sécurité : initialiser les tooltips Bootstrap si GLPI ne le fait pas déjà
+        // automatiquement pour ce contenu (sans effet si déjà initialisés par le core).
+        echo "<script>
+        document.querySelectorAll('[data-bs-toggle=\"tooltip\"]').forEach(function(el) {
+            if (window.bootstrap && !bootstrap.Tooltip.getInstance(el)) {
+                new bootstrap.Tooltip(el);
+            }
+        });
+        </script>";
     }
 }

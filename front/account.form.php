@@ -74,6 +74,8 @@ if (isset($_POST['add'])) {
     $id = (int)($_POST['id'] ?? 0);
     try {
         $importer = new Importer($id);
+        // Synchro manuelle déclenchée par un utilisateur : restreindre à son entité active
+        $importer->restrictToActiveEntities();
         $result   = $importer->sync();
         echo json_encode(['success' => true] + $result);
     } catch (\Exception $e) {

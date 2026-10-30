@@ -143,9 +143,15 @@ window.initDnsManagerForm = function initDnsManagerForm() {
                 .then(function(r) { return r.json(); })
                 .then(function(d) {
                     btnTest.disabled = false;
-                    result.innerHTML = d.success
-                        ? '<div class="alert alert-success"><i class="ti ti-circle-check me-2"></i>Connexion réussie !</div>'
-                        : '<div class="alert alert-danger"><i class="ti ti-circle-x me-2"></i><strong>Échec :</strong> ' + d.message + '</div>';
+                    if (d.success) {
+                        var diagHtml = '';
+                        if (d.message) {
+                            diagHtml = '<pre class="mt-2 mb-0 small">' + d.message.replace(/</g, '&lt;') + '</pre>';
+                        }
+                        result.innerHTML = '<div class="alert alert-success"><i class="ti ti-circle-check me-2"></i>Connexion réussie !' + diagHtml + '</div>';
+                    } else {
+                        result.innerHTML = '<div class="alert alert-danger"><i class="ti ti-circle-x me-2"></i><strong>Échec :</strong> ' + d.message + '</div>';
+                    }
                 })
                 .catch(function() {
                     btnTest.disabled = false;

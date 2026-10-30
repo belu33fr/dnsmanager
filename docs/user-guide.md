@@ -60,11 +60,45 @@ Allez dans **Outils → DNS Hébergeurs → + Ajouter**
 - Groupe et Groupe responsable
 
 **Authentification OVH** : Application Key (AK), Application Secret (AS), Consumer Key (CK)
-→ Créer sur https://eu.api.ovh.com/createApp
+→ Créer sur https://eu.api.ovh.com/createApp (ou l'URL régionale correspondant à votre endpoint : `ca` pour Canada, `us` pour USA, etc.)
+
+Droits (Access Rules) à valider lors de la création de la Consumer Key — **lecture seule**, suffisant pour la synchronisation actuelle :
+
+| Méthode | Chemin |
+|---------|--------|
+| GET | `/me` |
+| GET | `/domain` |
+| GET | `/domain/*` |
+| GET | `/domain/zone/*` |
+
+*Note : `/domain/zone/*` couvre l'ensemble des sous-chemins nécessaires (enregistrements, SOA/TTL par défaut, etc.) — pas besoin de règles séparées par sous-ressource.*
+
+⚠️ Le droit `GET /me` est indispensable — il est utilisé pour valider la connexion (test de connexion) et son omission provoque une erreur `403 This call has not been granted` même si les droits sur `/domain/*` sont corrects.
+
+Pour la fonctionnalité de modification bidirectionnelle des enregistrements DNS depuis GLPI (création/modification/suppression, réglable par compte via "Autoriser la modification bidirectionnelle" — désactivée par défaut, OVH uniquement pour l'instant), ajoutez également :
+
+| Méthode | Chemin |
+|---------|--------|
+| POST | `/domain/zone/*` |
+| PUT | `/domain/zone/*` |
+| DELETE | `/domain/zone/*` |
+
+⚠️ Depuis la version 3.9.3, le bouton **"Tester la connexion"** vérifie automatiquement la présence de ces droits d'écriture et l'affiche clairement (OK ou droits manquants avec le détail). **Testez systématiquement la connexion avant d'activer "Autoriser la modification bidirectionnelle"** sur un compte — sans ces droits, chaque ajout/modification/suppression d'enregistrement DNS échouera côté OVH (erreur 403) bien que l'action réussisse normalement dans GLPI ; un message d'avertissement s'affiche alors à l'utilisateur au moment de l'action concernée.
 
 **Authentification Gandi** : Personal Access Token (PAT)
 → Créer sur https://admin.gandi.net → Sécurité → Personal Access Tokens
-→ Permissions requises : `domain:view`
+
+⚠️ **Un token Gandi est scopé à une seule organisation** (ou au compte personnel) au moment de sa création — il n'existe pas de token "multi-organisations" avec le PAT. Si vous gérez plusieurs organisations Gandi (revendeur, clients multiples...), créez **un compte DNS Hébergeurs par organisation**, chacun avec son propre token dédié à cette organisation précise.
+
+Permissions à cocher lors de la création du token — **lecture seule**, suffisant pour la synchronisation actuelle :
+- `Voir les domaines` (`domain:view`)
+
+Pour anticiper la future fonctionnalité de modification bidirectionnelle, vous pouvez aussi cocher :
+- `Gérer les domaines` / gestion des enregistrements LiveDNS
+
+⚠️ Comme pour OVH, ces droits d'écriture ne sont pas encore exploités par le plugin.
+
+*Astuce* : le bouton **"Tester la connexion"** du formulaire de compte Gandi affiche, en cas de succès, l'organisation détectée pour ce token — pratique pour vérifier que le bon token est associé au bon compte.
 
 ---
 
@@ -72,7 +106,7 @@ Allez dans **Outils → DNS Hébergeurs → + Ajouter**
 
 ### Depuis la fiche d'un compte DNS
 
-- **Analyser et synchroniser** : analyse les domaines, propose l'import des nouveaux
+- **Rechercher nouveaux domaines** : analyse les domaines, propose l'import des nouveaux
 - **Sync rapide** : synchronise directement sans analyse
 
 ### Depuis la liste des comptes (Actions massives)

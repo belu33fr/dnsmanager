@@ -101,6 +101,25 @@ function plugin_dnsmanager_install(): bool
         ");
     }
 
+    // Verrouillage par domaine (modification bidirectionnelle des enregistrements DNS)
+    if (!$DB->tableExists('glpi_plugin_dnsmanager_domainlocks')) {
+        $DB->doQuery("
+            CREATE TABLE `glpi_plugin_dnsmanager_domainlocks` (
+                `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                `domains_id`  INT UNSIGNED NOT NULL,
+                `lock_type`   VARCHAR(20) NOT NULL DEFAULT 'sync',
+                `locked_by`   INT UNSIGNED NOT NULL DEFAULT 0,
+                `locked_at`   DATETIME NOT NULL,
+                `expires_at`  DATETIME NOT NULL,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uniq_domain_lock` (`domains_id`),
+                KEY `expires_at` (`expires_at`)
+            ) ENGINE=InnoDB
+            DEFAULT CHARSET={$default_charset}
+            COLLATE={$default_collation}
+        ");
+    }
+
     // Journal de synchronisation
     $table = Synclog::getTable();
     if (!$DB->tableExists($table)) {
@@ -155,7 +174,7 @@ function plugin_dnsmanager_install(): bool
     // Initialiser les paramètres par défaut
     $configTable = \GlpiPlugin\Dnsmanager\Config::getTable();
     if ($DB->tableExists($configTable)) {
-        $defaults = ['entity_labels' => 'Sites;Financier'];
+        $defaults = ['entity_labels' => 'Sites;Financier', 'entity_children_labels' => ''];
         foreach ($defaults as $key => $value) {
             $existing = $DB->request(['FROM' => $configTable, 'WHERE' => ['config_key' => $key]])->current();
             if (!$existing) {
@@ -243,6 +262,9 @@ function plugin_dnsmanager_migrate(): void
         'users_id_proprietairefield'                      => "ALTER TABLE `$accountTable` ADD COLUMN `users_id_proprietairefield` INT(10) UNSIGNED NOT NULL DEFAULT 0",
         'groups_id'                                       => "ALTER TABLE `$accountTable` ADD COLUMN `groups_id` INT(10) UNSIGNED NOT NULL DEFAULT 0",
         'groups_id_tech'                                  => "ALTER TABLE `$accountTable` ADD COLUMN `groups_id_tech` INT(10) UNSIGNED NOT NULL DEFAULT 0",
+        'contact_groups_id'                               => "ALTER TABLE `$accountTable` ADD COLUMN `contact_groups_id` INT(10) UNSIGNED NOT NULL DEFAULT 0",
+        'allow_bidirectional_sync'                        => "ALTER TABLE `$accountTable` ADD COLUMN `allow_bidirectional_sync` TINYINT(1) NOT NULL DEFAULT 0",
+        'provider_key_name'                               => "ALTER TABLE `$accountTable` ADD COLUMN `provider_key_name` VARCHAR(255) NOT NULL DEFAULT ''",
     ];
 
     foreach ($cols as $col => $sql) {
@@ -444,6 +466,7 @@ function plugin_dnsmanager_init_fields(): void
                 ['label' => 'Ne pas Renouveler', 'type' => 'yesno',             'name' => 'nepasrenouvelerfield', 'ranking' => 1, 'default_value' => '0'],
                 ['label' => 'Averti',             'type' => 'yesno',             'name' => 'avertifield',          'ranking' => 2, 'default_value' => '0'],
                 ['label' => 'Fournisseur',        'type' => 'dropdown-Supplier', 'name' => 'suppliers_id_fournisseurfieldtwo', 'ranking' => 3, 'default_value' => '0'],
+                ['label' => 'TTL par defaut',     'type' => 'number',            'name' => 'ttldfautfield',        'ranking' => 4, 'default_value' => '0'],
             ],
         ],
         [

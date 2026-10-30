@@ -63,6 +63,33 @@
             'min': 1, 'max': 12
         }) }}
 
+        <div class="mb-3 row">
+            <label class="col-xxl-4 col-form-label">{{ __('Autoriser la modification bidirectionnelle', 'dnsmanager') }}</label>
+            <div class="col-xxl-8">
+                <div class="form-check form-switch pt-2">
+                    <input type="hidden" name="allow_bidirectional_sync" value="0">
+                    <input type="checkbox" id="dnsmanager-bidir-switch" class="form-check-input dnsmanager-bidir-switch" role="switch"
+                           name="allow_bidirectional_sync" value="1"
+                           {% if item.fields['allow_bidirectional_sync'] %}checked{% endif %}>
+                </div>
+                <style>
+                    /* Actif = orange soutenu (signal d'avertissement, fonctionnalité qui écrit réellement chez le provider) */
+                    /* Inactif = gris clair standard, discret */
+                    .dnsmanager-bidir-switch:checked {
+                        background-color: #f0932b !important;
+                        border-color: #d97706 !important;
+                    }
+                    .dnsmanager-bidir-switch:not(:checked) {
+                        background-color: #e9ecef;
+                        border-color: #ced4da;
+                    }
+                </style>
+                <div class="form-text text-muted">
+                    {{ __("Expérimental. Si activé, les ajouts/modifications/suppressions d'enregistrements DNS faits dans GLPI seront répercutés chez le provider (OVH uniquement pour l'instant). À activer avec prudence, de préférence sur un compte de test d'abord.", 'dnsmanager') }}
+                </div>
+            </div>
+        </div>
+
         {{ fields.smallTitle(__("Contacts par défaut (copiés à l'import)", "dnsmanager")) }}
 
         {# Groupe et Groupe responsable sont gérés automatiquement par GLPI dans l'en-tête #}
@@ -74,7 +101,7 @@
             'plugin_accounts_accounts_id_administrateurfield',
             item.fields['plugin_accounts_accounts_id_administrateurfield'] ?? 0,
             __('Administrateur', 'dnsmanager'),
-            {'display_emptychoice': true}
+            {'display_emptychoice': true, 'condition': accounts_type_condition}
         ) }}
 
         {{ fields.dropdownField(
@@ -82,7 +109,7 @@
             'plugin_accounts_accounts_id_technicienfield',
             item.fields['plugin_accounts_accounts_id_technicienfield'] ?? 0,
             __('Technicien', 'dnsmanager'),
-            {'display_emptychoice': true}
+            {'display_emptychoice': true, 'condition': accounts_type_condition}
         ) }}
 
         {{ fields.dropdownField(
@@ -90,13 +117,24 @@
             'plugin_accounts_accounts_id_financierfield',
             item.fields['plugin_accounts_accounts_id_financierfield'] ?? 0,
             __('Financier', 'dnsmanager'),
-            {'display_emptychoice': true}
+            {'display_emptychoice': true, 'condition': accounts_type_condition}
         ) }}
         {% else %}
         <div class="alert alert-warning">
             <i class="ti ti-alert-triangle me-2"></i>{{ __('Plugin Accounts requis pour les contacts.', 'dnsmanager') }}
         </div>
         {% endif %}
+
+        {{ fields.dropdownField(
+            'Group',
+            'contact_groups_id',
+            item.fields['contact_groups_id'] ?? 0,
+            __('Groupe concerné (comptes contacts créés)', 'dnsmanager'),
+            {
+                'display_emptychoice': true,
+                'helper': __('Groupe assigné automatiquement aux nouveaux comptes contact créés depuis le registrar (Statut : Actif, Type : Fournisseur)', 'dnsmanager')
+            }
+        ) }}
 
         {{ fields.dropdownField(
             'User',
@@ -107,6 +145,10 @@
         ) }}
 
         {{ fields.smallTitle(__('Authentification', 'dnsmanager')) }}
+
+        {{ fields.textField('provider_key_name', item.fields['provider_key_name'], __('Nom de la clé chez le provider', 'dnsmanager'), {
+            'helper': __("Libellé libre pour retrouver facilement cette clé API dans l'interface du provider (ex: OVH, Gandi) — utile si vous en gérez plusieurs.", 'dnsmanager')
+        }) }}
 
         <div id="dns-credentials-section" class="col-12 mb-3">
             <div class="alert alert-info"><i class="ti ti-loader me-2"></i>Chargement...</div>
@@ -119,7 +161,7 @@
             </button>
             <a href="{{ webdir }}/front/domain.import.php?account_id={{ item.fields['id'] }}"
                class="btn btn-primary" id="dns-btn-sync-interactive">
-                <i class="ti ti-world-upload me-1"></i>{{ __('Analyser et synchroniser', 'dnsmanager') }}
+                <i class="ti ti-world-upload me-1"></i>{{ __('Rechercher nouveaux domaines', 'dnsmanager') }}
             </a>
             <button type="button" id="dns-btn-sync" class="btn btn-primary">
                 <i class="ti ti-refresh me-1"></i>{{ __('Sync rapide', 'dnsmanager') }}

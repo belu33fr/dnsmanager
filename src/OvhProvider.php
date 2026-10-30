@@ -19,6 +19,7 @@ class OvhProvider implements ProviderInterface
     private string $appSecret;
     private string $consumerKey;
     private ?int   $timeDelta = null;
+    private array  $lastDiagnostic = [];
 
     public function __construct(array $credentials, string $endpoint = 'ovh-eu')
     {
@@ -58,7 +59,56 @@ class OvhProvider implements ProviderInterface
         if (!isset($result['nichandle'])) {
             throw new \RuntimeException('Réponse inattendue de l\'API OVH.');
         }
+
+        // Vérification des droits d'écriture (modification bidirectionnelle) — introspection
+        // pure via /auth/currentCredential, sans aucune action réelle sur un domaine.
+        $this->lastDiagnostic = [];
+        try {
+            $credential = $this->get('/auth/currentCredential');
+            $rules = $credential['rules'] ?? [];
+
+            $hasWrite = ['POST' => false, 'PUT' => false, 'DELETE' => false];
+            foreach ($rules as $rule) {
+                $method = strtoupper($rule['method'] ?? '');
+                $path   = $rule['path'] ?? '';
+                if (!isset($hasWrite[$method])) continue;
+                // Le chemin doit couvrir /domain/zone/* (accepte aussi un chemin plus large comme /domain/*)
+                if (str_starts_with('/domain/zone/', rtrim($path, '*')) || $path === '/domain/zone/*' || $path === '/*') {
+                    $hasWrite[$method] = true;
+                }
+            }
+
+            $this->lastDiagnostic['write_rights'] = $hasWrite;
+        } catch (\Exception $e) {
+            $this->lastDiagnostic['write_rights_error'] = $e->getMessage();
+        }
+
         return true;
+    }
+
+    public function getDiagnosticMessage(): string
+    {
+        if (empty($this->lastDiagnostic)) return '';
+
+        $lines = [];
+
+        if (!empty($this->lastDiagnostic['write_rights_error'])) {
+            $lines[] = 'Droits d\'écriture (modification bidirectionnelle) : impossible à vérifier — ' . $this->lastDiagnostic['write_rights_error'];
+        } elseif (isset($this->lastDiagnostic['write_rights'])) {
+            $w = $this->lastDiagnostic['write_rights'];
+            $allGranted = $w['POST'] && $w['PUT'] && $w['DELETE'];
+            if ($allGranted) {
+                $lines[] = 'Droits d\'écriture (modification bidirectionnelle) : OK — POST/PUT/DELETE sur /domain/zone/* accordés.';
+            } else {
+                $missing = [];
+                foreach (['POST', 'PUT', 'DELETE'] as $m) {
+                    if (!$w[$m]) $missing[] = $m;
+                }
+                $lines[] = 'Droits d\'écriture (modification bidirectionnelle) : INCOMPLETS — méthode(s) manquante(s) sur /domain/zone/* : ' . implode(', ', $missing) . '. La lecture/synchronisation classique fonctionne normalement, mais la modification bidirectionnelle échouera (403) tant que ces droits ne sont pas ajoutés à la Consumer Key.';
+            }
+        }
+
+        return implode("\n", $lines);
     }
 
     public function listDomains(): array
@@ -86,6 +136,7 @@ class OvhProvider implements ProviderInterface
         $recordIds = $this->get('/domain/zone/' . urlencode($zoneRef) . '/record');
         if (!is_array($recordIds)) return [];
         $records = [];
+        $failures = [];
         foreach ($recordIds as $recordId) {
             try {
                 $rec = $this->get('/domain/zone/' . urlencode($zoneRef) . '/record/' . (int)$recordId);
@@ -97,8 +148,25 @@ class OvhProvider implements ProviderInterface
                     'ttl'      => (int)($rec['ttl'] ?? 0),
                     'priority' => 0,
                 ];
-            } catch (\Exception) {}
+            } catch (\Exception $e) {
+                // NE PLUS avaler silencieusement : un échec ponctuel (rate limiting,
+                // timeout...) sur UN enregistrement ne doit jamais laisser croire que
+                // la liste complète est fiable — sinon la logique de nettoyage de la
+                // synchro (records absents d'OVH -> corbeille) supprimerait à tort des
+                // enregistrements bien réels, juste temporairement inaccessibles.
+                $failures[] = (string)$recordId . ' (' . $e->getMessage() . ')';
+            }
         }
+
+        if (!empty($failures)) {
+            throw new \RuntimeException(
+                'Liste des enregistrements incomplète pour la zone "' . $zoneRef . '" : '
+                . count($failures) . ' enregistrement(s) sur ' . count($recordIds) . ' n\'ont pas pu être récupérés ('
+                . implode(', ', array_slice($failures, 0, 5)) . (count($failures) > 5 ? ', ...' : '')
+                . '). Synchronisation de ce domaine annulée par sécurité pour éviter une suppression erronée.'
+            );
+        }
+
         return $records;
     }
 
@@ -106,29 +174,46 @@ class OvhProvider implements ProviderInterface
     {
         $info = ['creation_date' => '', 'expiration_date' => '', 'admin_contact' => '', 'tech_contact' => '', 'billing_contact' => ''];
 
-        // Dates via RDAP (bootstrap IANA)
-        $rdapDates = $this->getRdapDates($zoneRef);
-        $info['creation_date']   = $rdapDates['creation_date'];
-        $info['expiration_date'] = $rdapDates['expiration_date'];
-
-        // Contacts via API OVH
+        // Dates + contacts en un seul appel via l'objet Service générique OVH.
+        // NB: /domain/{zoneRef}/contacts n'existe pas — le bon endpoint est serviceInfos.
         try {
-            $contacts = $this->get('/domain/' . urlencode($zoneRef) . '/contacts');
-            if (is_array($contacts)) {
-                foreach ($contacts as $contact) {
-                    $type = strtolower($contact['type'] ?? '');
-                    $nic  = $contact['contactId'] ?? $contact['nic'] ?? '';
-                    match ($type) {
-                        'admin', 'administrator' => $info['admin_contact']   = $nic,
-                        'tech',  'technical'     => $info['tech_contact']    = $nic,
-                        'billing'                => $info['billing_contact'] = $nic,
-                        default                  => null,
-                    };
-                }
+            $serviceInfos = $this->get('/domain/' . urlencode($zoneRef) . '/serviceInfos');
+            if (is_array($serviceInfos)) {
+                $info['admin_contact']   = trim((string)($serviceInfos['contactAdmin']   ?? ''));
+                $info['tech_contact']    = trim((string)($serviceInfos['contactTech']    ?? ''));
+                $info['billing_contact'] = trim((string)($serviceInfos['contactBilling'] ?? ''));
+                $info['creation_date']   = trim((string)($serviceInfos['creation']       ?? ''));
+                $info['expiration_date'] = trim((string)($serviceInfos['expiration']     ?? ''));
             }
         } catch (\Exception) {}
 
+        // Repli sur RDAP si serviceInfos n'a pas donné de dates — cas d'un domaine
+        // dont la zone DNS est hébergée chez OVH mais enregistré chez un autre registrar
+        // (serviceInfos ne concerne que les services facturés par OVH).
+        if ($info['creation_date'] === '' || $info['expiration_date'] === '') {
+            $rdapDates = $this->getRdapDates($zoneRef);
+            if ($info['creation_date'] === '')   $info['creation_date']   = $rdapDates['creation_date'];
+            if ($info['expiration_date'] === '') $info['expiration_date'] = $rdapDates['expiration_date'];
+        }
+
         return $info;
+    }
+
+    /**
+     * TTL par défaut de la zone (SOA TTL) — utilisé par les enregistrements
+     * dont le TTL est à 0 (= "hérite du défaut de zone" chez OVH).
+     * @see https://eu.api.ovh.com/console/#/domain/zone/{zoneName}/soa#GET
+     */
+    public function getZoneDefaultTtl(string $zoneRef): ?int
+    {
+        try {
+            $soa = $this->get('/domain/zone/' . urlencode($zoneRef) . '/soa');
+            if (is_array($soa) && isset($soa['ttl'])) {
+                return (int)$soa['ttl'];
+            }
+        } catch (\Exception) {}
+
+        return null;
     }
 
     // Phase 3
@@ -136,7 +221,7 @@ class OvhProvider implements ProviderInterface
     {
         $result = $this->rawCall('POST', '/domain/zone/' . urlencode($zoneRef) . '/record', [
             'fieldType' => $data['type'],
-            'subDomain' => $data['name'] === $zoneRef ? '' : $data['name'],
+            'subDomain' => $this->denormalizeSubdomain($data['name'], $zoneRef),
             'target'    => $data['target'],
             'ttl'       => $data['ttl'] ?? 0,
         ]);
@@ -146,11 +231,15 @@ class OvhProvider implements ProviderInterface
 
     public function updateRecord(string $zoneRef, string $recordRef, array $data): bool
     {
-        $this->rawCall('PUT', '/domain/zone/' . urlencode($zoneRef) . '/record/' . (int)$recordRef, [
-            'subDomain' => $data['name']   ?? '',
-            'target'    => $data['target'] ?? '',
-            'ttl'       => $data['ttl']    ?? 0,
-        ]);
+        $payload = [
+            'target' => $data['target'] ?? '',
+            'ttl'    => $data['ttl']    ?? 0,
+        ];
+        // subDomain (nom) uniquement si fourni — OVH accepte un renommage via PUT
+        if (isset($data['name'])) {
+            $payload['subDomain'] = $this->denormalizeSubdomain($data['name'], $zoneRef);
+        }
+        $this->rawCall('PUT', '/domain/zone/' . urlencode($zoneRef) . '/record/' . (int)$recordRef, $payload);
         $this->rawCall('POST', '/domain/zone/' . urlencode($zoneRef) . '/refresh', null);
         return true;
     }
@@ -280,5 +369,22 @@ class OvhProvider implements ProviderInterface
     {
         if ($sub === '' || $sub === '@') return $zone;
         return $sub . '.' . $zone;
+    }
+
+    /**
+     * Inverse de normalizeSubdomain() : reconstruit le "subDomain" attendu par
+     * l'API OVH (forme courte, ex: "www") à partir du name complet (FQDN)
+     * stocké côté GLPI (ex: "www.example.com").
+     */
+    private function denormalizeSubdomain(string $fqdn, string $zone): string
+    {
+        if ($fqdn === $zone) return '';
+        $suffix = '.' . $zone;
+        if (str_ends_with($fqdn, $suffix)) {
+            return substr($fqdn, 0, -strlen($suffix));
+        }
+        // Cas inattendu (name ne se termine pas par la zone) : renvoyer tel quel,
+        // OVH renverra une erreur explicite plutôt qu'un mauvais enregistrement silencieux.
+        return $fqdn;
     }
 }

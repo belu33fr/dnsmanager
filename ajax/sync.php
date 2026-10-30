@@ -3,9 +3,11 @@
 use GlpiPlugin\Dnsmanager\Account;
 use GlpiPlugin\Dnsmanager\Credential;
 use GlpiPlugin\Dnsmanager\Importer;
+use GlpiPlugin\Dnsmanager\DomainImporter;
 use GlpiPlugin\Dnsmanager\ProviderFactory;
 
 include('../../../inc/includes.php');
+set_time_limit(120); // 2 minutes max par requête
 
 Session::checkLoginUser();
 Session::checkRight('plugin_dnsmanager_account', READ);
@@ -22,14 +24,23 @@ try {
             Session::checkRight('plugin_dnsmanager_sync', UPDATE);
             if (!$accountId) throw new \InvalidArgumentException('ID de compte manquant.');
             $importer = new Importer($accountId);
+            // Synchro manuelle déclenchée par un utilisateur : restreindre à son entité active
+            $importer->restrictToActiveEntities();
             $result   = $importer->sync();
             echo json_encode(['success' => true] + $result);
             break;
 
         case 'test':
             if (!$accountId) throw new \InvalidArgumentException('ID de compte manquant.');
-            Account::getProvider($accountId)->testConnection();
-            echo json_encode(['success' => true]);
+            $provider = Account::getProvider($accountId);
+            $provider->testConnection();
+            $result = ['success' => true];
+            // Si le provider expose un diagnostic (ex: Gandi - organisations détectées), l'inclure
+            if (method_exists($provider, 'getDiagnosticMessage')) {
+                $diag = $provider->getDiagnosticMessage();
+                if (!empty($diag)) $result['message'] = $diag;
+            }
+            echo json_encode($result);
             break;
 
         case 'test_form':
@@ -51,11 +62,118 @@ try {
             }
             if (!empty($missing)) throw new \InvalidArgumentException('Champs manquants : ' . implode(', ', $missing));
 
-            ProviderFactory::create($providerType, $credentials, $endpoint)->testConnection();
-            echo json_encode(['success' => true]);
+            $provider = ProviderFactory::create($providerType, $credentials, $endpoint);
+            $provider->testConnection();
+            $result = ['success' => true];
+            // Si le provider expose un diagnostic (ex: Gandi - organisations détectées), l'inclure
+            if (method_exists($provider, 'getDiagnosticMessage')) {
+                $diag = $provider->getDiagnosticMessage();
+                if (!empty($diag)) $result['message'] = $diag;
+            }
+            echo json_encode($result);
             break;
 
-        case 'sync_domain':
+        case 'get_sync_domains':
+        // Retourne la liste des provider_ref des domaines mappés pour ce compte
+        Session::checkRight('plugin_dnsmanager_sync', UPDATE);
+        if (!$accountId) throw new \InvalidArgumentException('ID de compte manquant.');
+        $domains = [];
+        foreach ($DB->request([
+            'FROM'  => 'glpi_plugin_dnsmanager_domains',
+            'WHERE' => ['accounts_id' => $accountId],
+        ]) as $row) {
+            // Vérifier que le domaine GLPI existe et n'est pas en corbeille
+            $glpiDomain = $DB->request([
+                'FROM'  => 'glpi_domains',
+                'WHERE' => ['id' => (int)$row['domains_id'], 'is_deleted' => 0],
+            ])->current();
+            if ($glpiDomain) {
+                $domains[] = $row['provider_ref'];
+            }
+        }
+        echo json_encode(['success' => true, 'domains' => $domains]);
+        break;
+
+    case 'import_domain':
+        global $DB;
+        $accountId  = (int)($_POST['account_id'] ?? 0);
+        $encodedRef = trim($_POST['encoded_ref'] ?? '');
+        $entitiesId = (int)($_POST['entities_id'] ?? 0);
+        if (!$accountId || !$encodedRef || !$entitiesId) {
+            echo json_encode(['success' => false, 'message' => 'Paramètres manquants']);
+            break;
+        }
+        try {
+            $providerRef = base64_decode($encodedRef);
+
+            // Vérification doublon : domaine déjà présent dans GLPI ?
+            $existing = $DB->request([
+                'FROM'  => 'glpi_domains',
+                'WHERE' => ['name' => $providerRef, 'is_deleted' => 0],
+            ])->current();
+            if ($existing) {
+                // Domaine déjà présent - créer juste le mapping si absent
+                $mapping = $DB->request([
+                    'FROM'  => 'glpi_plugin_dnsmanager_domains',
+                    'WHERE' => ['accounts_id' => $accountId, 'provider_ref' => $providerRef],
+                ])->current();
+                if (!$mapping) {
+                    $DB->insert('glpi_plugin_dnsmanager_domains', [
+                        'accounts_id'  => $accountId,
+                        'domains_id'   => (int)$existing['id'],
+                        'provider_ref' => $providerRef,
+                        'last_sync_at' => date('Y-m-d H:i:s'),
+                        'sync_status'  => 'existing',
+                    ]);
+                }
+                echo json_encode(['success' => true, 'message' => $providerRef . ' (déjà présent, mapping créé)']);
+                break;
+            }
+
+            $domainImporter = new DomainImporter($accountId, true);
+            $domainImporter->importDomain($providerRef, $entitiesId);
+            echo json_encode(['success' => true, 'message' => $providerRef]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        break;
+
+    case 'restore_domain':
+        $accountId   = (int)($_POST['account_id'] ?? 0);
+        $domainId    = (int)($_POST['domain_id'] ?? 0);
+        $providerRef = trim($_POST['provider_ref'] ?? '');
+        if (!$accountId || !$domainId) {
+            echo json_encode(['success' => false, 'message' => 'Paramètres manquants']);
+            break;
+        }
+        try {
+            $domainImporter = new DomainImporter($accountId, true);
+            $domainImporter->restoreDomain($domainId);
+            $importer = new Importer($accountId, false);
+            $importer->syncDomainByRef($providerRef);
+            echo json_encode(['success' => true, 'message' => $providerRef]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        break;
+
+    case 'delete_domain':
+        $accountId = (int)($_POST['account_id'] ?? 0);
+        $domainId  = (int)($_POST['domain_id'] ?? 0);
+        if (!$accountId || !$domainId) {
+            echo json_encode(['success' => false, 'message' => 'Paramètres manquants']);
+            break;
+        }
+        try {
+            $domain = new \Domain();
+            $domain->delete(['id' => $domainId]);
+            echo json_encode(['success' => true, 'message' => '#' . $domainId]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        break;
+
+    case 'sync_domain':
             $accountId = (int)($_POST['account_id'] ?? 0);
             $domainRef = trim($_POST['domain_ref'] ?? '');
             if (!$accountId || !$domainRef) {

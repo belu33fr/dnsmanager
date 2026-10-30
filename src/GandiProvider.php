@@ -45,15 +45,56 @@ class GandiProvider implements ProviderInterface
                 'label'    => 'Personal Access Token (PAT)',
                 'type'     => 'password',
                 'required' => true,
-                'help'     => 'Créer sur https://admin.gandi.net → Sécurité → Personal Access Tokens',
+                'help'     => 'Créer sur https://admin.gandi.net → Sécurité → Personal Access Tokens. Un token = une seule organisation Gandi : créez un compte DNS Hébergeurs distinct par organisation.',
             ],
         ];
     }
 
+    /** @var array Dernier diagnostic de connexion (orgs trouvées, erreurs) */
+    private array $lastDiagnostic = [];
+
     public function testConnection(): bool
     {
         $response = $this->request('GET', '/domain/domains?per_page=1');
+
+        // Diagnostic : lister les organisations détectées pour vérification
+        $this->lastDiagnostic = ['personal' => true, 'organizations' => [], 'org_error' => null];
+        try {
+            $orgs = $this->request('GET', '/organization/organizations');
+            if (is_array($orgs)) {
+                foreach ($orgs as $org) {
+                    $this->lastDiagnostic['organizations'][] = ($org['name'] ?? '?') . ' (' . ($org['id'] ?? '?') . ')';
+                }
+            }
+        } catch (\Exception $e) {
+            $this->lastDiagnostic['org_error'] = $e->getMessage();
+        }
+
         return is_array($response);
+    }
+
+    /**
+     * Retourne un message lisible listant le compte personnel + les organisations
+     * détectées, à afficher lors du test de connexion pour vérification.
+     */
+    public function getDiagnosticMessage(): string
+    {
+        if (empty($this->lastDiagnostic)) return '';
+
+        $lines = ['Compte personnel : détecté'];
+
+        if (!empty($this->lastDiagnostic['org_error'])) {
+            $lines[] = 'Organisations : erreur lors de la détection — ' . $this->lastDiagnostic['org_error'];
+        } elseif (empty($this->lastDiagnostic['organizations'])) {
+            $lines[] = 'Organisations : aucune détectée';
+        } else {
+            $lines[] = 'Organisations détectées (' . count($this->lastDiagnostic['organizations']) . ') :';
+            foreach ($this->lastDiagnostic['organizations'] as $org) {
+                $lines[] = '  - ' . $org;
+            }
+        }
+
+        return implode("\n", $lines);
     }
 
     public function listDomains(): array
@@ -67,7 +108,7 @@ class GandiProvider implements ProviderInterface
             if (!is_array($data)) break;
 
             foreach ($data as $domain) {
-                $fqdn      = $domain['fqdn'] ?? '';
+                $fqdn       = $domain['fqdn'] ?? '';
                 $nameserver = $domain['nameserver']['current'] ?? '';
 
                 if (!$fqdn) continue;
@@ -104,10 +145,33 @@ class GandiProvider implements ProviderInterface
 
         $dates = $domain['dates'] ?? [];
 
-        return [
+        $info = [
             'creation_date'   => $dates['registry_created_at'] ?? $dates['created_at'] ?? '',
             'expiration_date' => $dates['registry_ends_at'] ?? '',
         ];
+
+        // Contacts : Gandi n'a pas de nichandle comme OVH, mais de vraies fiches
+        // contact identifiées par email. Convention retenue :
+        //   name (clé de recherche/dédoublonnage) = "Gandi-" + email
+        //   login (stocké en plus)                = email brut
+        try {
+            $contacts = $this->request('GET', "/domain/domains/{$domainRef}/contacts");
+            if (is_array($contacts)) {
+                $map = [
+                    'admin' => 'admin_contact',
+                    'tech'  => 'tech_contact',
+                    'bill'  => 'billing_contact',
+                ];
+                foreach ($map as $gandiKey => $infoKey) {
+                    $email = trim((string)($contacts[$gandiKey]['email'] ?? ''));
+                    if ($email === '') continue;
+                    $info[$infoKey]            = 'Gandi-' . $email;
+                    $info[$infoKey . '_login'] = $email;
+                }
+            }
+        } catch (\Exception) {}
+
+        return $info;
     }
 
     public function listRecords(string $zoneRef): array
@@ -137,6 +201,17 @@ class GandiProvider implements ProviderInterface
         }
 
         return $records;
+    }
+
+    /**
+     * Gandi n'a pas de notion de "TTL par défaut de zone" configurable
+     * comme le SOA TTL d'OVH : chaque enregistrement LiveDNS a toujours
+     * un rrset_ttl explicite (10800 par défaut à la création). Il n'y a
+     * donc pas de valeur "0 = hérite du défaut" à résoudre côté Gandi.
+     */
+    public function getZoneDefaultTtl(string $zoneRef): ?int
+    {
+        return null;
     }
 
     public function createRecord(string $zoneRef, array $data): string { return ''; }

@@ -7,6 +7,7 @@ use GlpiPlugin\Dnsmanager\Right;
 use Glpi\Application\View\TemplateRenderer;
 
 include('../../../inc/includes.php');
+set_time_limit(120); // 2 minutes max
 
 Session::checkRight('plugin_dnsmanager_sync', UPDATE);
 
@@ -121,7 +122,6 @@ if (empty($analysis['to_import']) && empty($analysis['to_restore']) && empty($an
 }
 
 // Générer les dropdowns Entity filtrés selon la config
-$entityDropdowns = [];
 $importableEntities = \GlpiPlugin\Dnsmanager\DomainImporter::getImportableEntities();
 
 // Si la config est vide → toutes les entités accessibles
@@ -129,33 +129,32 @@ $entityCondition = empty($importableEntities)
     ? $_SESSION['glpiactiveentities']
     : array_column($importableEntities, 'id');
 
+// Condition SQL structurelle (parent-based) pour le filtre dans la modal
+// Contrairement à une liste figée d'IDs, ce filtre reste valide pour les
+// entités créées après le chargement de la page (nouveaux enfants).
+$modalCondition = \GlpiPlugin\Dnsmanager\DomainImporter::getImportableEntitiesCondition();
+$modalEntityDropdown = ''; // généré dans le template via itemtype_dropdown
+
 $toImportWithEncoding = [];
 foreach ($analysis['to_import'] as $domain) {
-    // Encoder le ref en base64 pour éviter la conversion des points en underscores par PHP
     $encodedRef = base64_encode($domain['ref']);
-    ob_start();
-    \Entity::dropdown([
-        'name'                => 'import[' . $encodedRef . ']',
-        'value'               => 0,
-        'entity'              => $entityCondition,
-        'display_emptychoice' => true,
-        'emptylabel'          => '-- ' . __('Ne pas importer', 'dnsmanager') . ' --',
-        'display'             => true,
-    ]);
-    $entityDropdowns[$encodedRef] = ob_get_clean();
     $domain['encoded_ref'] = $encodedRef;
     $toImportWithEncoding[] = $domain;
 }
+$entityDropdowns = []; // non utilisé
+$dropdownParams = []; // non utilisé
 
 TemplateRenderer::getInstance()->display('@dnsmanager/domain.import.html.twig', [
-    'account_id'       => $accountId,
-    'to_import'        => $toImportWithEncoding,
-    'to_restore'       => $analysis['to_restore'],
-    'to_delete'        => $analysis['to_delete'],
-    'to_sync'          => $analysis['to_sync'],
-    'entities'         => $entities,
-    'entity_dropdowns' => $entityDropdowns,
-    'webdir'           => Plugin::getWebDir('dnsmanager'),
+    'account_id'        => $accountId,
+    'to_import'         => $toImportWithEncoding,
+    'to_restore'        => $analysis['to_restore'],
+    'to_delete'         => $analysis['to_delete'],
+    'to_sync'           => $analysis['to_sync'],
+    'entities'          => $entities,
+    'entity_condition'  => $entityCondition,
+    'dropdown_params'   => $dropdownParams,
+    'modal_condition'   => $modalCondition,
+    'webdir'            => Plugin::getWebDir('dnsmanager'),
 ]);
 
 Html::footer();

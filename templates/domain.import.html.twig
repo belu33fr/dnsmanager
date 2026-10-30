@@ -1,166 +1,369 @@
-{% extends "layout/page_without_tabs.html.twig" %}
+{% import "components/form/fields_macros.html.twig" as fields %}
 
-{% block content_title %}
-    <i class="ti ti-world-upload me-2"></i>{{ __('Import de domaines DNS', 'dnsmanager') }}
-{% endblock %}
-
-{% block content %}
 <div class="container-fluid mt-3">
-    <form method="post" action="{{ webdir }}/front/domain.import.php">
-        <input type="hidden" name="_glpi_csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="account_id" value="{{ account_id }}">
-        <input type="hidden" name="action" value="import">
 
-        {# Nouveaux domaines à importer #}
+    <h2><i class="ti ti-world-upload me-2"></i>{{ __('Import de domaines DNS', 'dnsmanager') }}</h2>
+
+    {# Barre de progression #}
+    <div id="dns-import-progress" style="display:none" class="mb-3">
+        <div class="progress mb-2" style="height:24px">
+            <div id="dns-import-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+                 style="width:0%" role="progressbar">0%</div>
+        </div>
+        <div id="dns-import-msg" class="text-muted small"></div>
+        <ul id="dns-import-results" class="list-group mt-2" style="max-height:300px;overflow-y:auto"></ul>
+    </div>
+
+    <div id="dns-import-form"
+         data-sync-url="{{ webdir }}/ajax/sync.php"
+         data-account-id="{{ account_id }}">
+
+        {# Domaines à importer #}
         {% if to_import is not empty %}
-        <div class="card mb-4">
-            <div class="card-header bg-success text-white">
-                <h3 class="mb-0">
-                    <i class="ti ti-circle-plus me-2"></i>
+        <div class="card mb-3">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h3 class="card-title mb-0">
+                    <i class="ti ti-download me-2"></i>
                     {{ __('Nouveaux domaines à importer', 'dnsmanager') }}
-                    <span class="badge bg-white text-success ms-2">{{ to_import|length }}</span>
+                    <span class="badge bg-primary ms-2">{{ to_import|length }}</span>
                 </h3>
+                <div class="dropdown">
+                    <button class="btn btn-primary dropdown-toggle" type="button" id="dns-actions-btn" data-bs-toggle="dropdown">
+                        <i class="ti ti-player-play me-1"></i>{{ __('Actions', 'dnsmanager') }}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item" href="#" id="dns-action-set-entity">
+                                <i class="ti ti-building me-2"></i>{{ __("Définir l'entité", "dnsmanager") }}
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="#" id="dns-action-unset-entity">
+                                <i class="ti ti-building-off me-2"></i>{{ __("Désaffecter l'entité", "dnsmanager") }}
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="#" id="dns-import-submit">
+                                <i class="ti ti-download me-2"></i>{{ __('Importer les domaines', 'dnsmanager') }}
+                            </a>
+                        </li>
+                    </ul>
+                </div>
             </div>
-            <div class="card-body">
-                <p class="text-muted">
-                    {{ __('Choisissez l\'entité de rattachement pour chaque domaine. Les domaines sans entité choisie ne seront pas importés.', 'dnsmanager') }}
-                </p>
-                <table class="table table-striped table-sm">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>{{ __('Domaine', 'dnsmanager') }}</th>
-                            <th>{{ __('Entité de rattachement', 'dnsmanager') }}</th>
-                        </tr>
-                    </thead>
+
+            {# Panneau intégré (pas de modale) pour la sélection d'entité #}
+            <div id="dns-entity-panel" class="card-body border-bottom bg-light" style="display:none">
+                <p class="text-muted small mb-2" id="dns-panel-count"></p>
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-8">
+                        {{ 'Entity'|itemtype_dropdown({
+                            'name': 'modal_entity_id',
+                            'value': 0,
+                            'display_emptychoice': true,
+                            'emptylabel': '-- ' ~ __('Choisir une entité', 'dnsmanager') ~ ' --',
+                            'display_tree': true,
+                            'showentity': true,
+                            'comments': false,
+                            'addicon': true,
+                            'editicon': true,
+                            'checkright': true,
+                            'ajax_limit_count': 1,
+                            'condition': modal_condition
+                        })|raw }}
+                    </div>
+                    <div class="col-md-4 d-flex gap-2">
+                        <button type="button" class="btn btn-primary" id="dns-entity-confirm">
+                            <i class="ti ti-check me-1"></i>{{ __('Appliquer', 'dnsmanager') }}
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="dns-entity-cancel">
+                            {{ __('Annuler', 'dnsmanager') }}
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead><tr>
+                        <th width="30"><input type="checkbox" id="check-all-import" class="form-check-input"></th>
+                        <th>{{ __('Domaine', 'dnsmanager') }}</th>
+                        <th>{{ __('Entité de rattachement', 'dnsmanager') }}</th>
+                    </tr></thead>
                     <tbody>
-                        {% for domain in to_import %}
-                        <tr>
-                            <td>
-                                <strong>{{ domain.domain_data.name }}</strong>
-                            </td>
-                            <td>
-                                <div class="d-flex align-items-center gap-2">
-                                    <div class="form-check">
-                                        <input class="form-check-input import-checkbox"
-                                               type="checkbox"
-                                               id="cb_{{ domain.encoded_ref }}"
-                                               data-ref="{{ domain.encoded_ref }}"
-                                               onchange="document.getElementById('dd_{{ domain.encoded_ref }}').style.display = this.checked ? '' : 'none'">
-                                        <label class="form-check-label" for="cb_{{ domain.encoded_ref }}">
-                                            {{ __('Importer', 'dnsmanager') }}
-                                        </label>
-                                    </div>
-                                    <div id="dd_{{ domain.encoded_ref }}" style="display:none">
-                                        {{ entity_dropdowns[domain.encoded_ref]|raw }}
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
+                    {% for domain in to_import %}
+                    <tr id="row_{{ domain.encoded_ref }}">
+                        <td>
+                            <input type="checkbox"
+                                   class="form-check-input dns-import-checkbox"
+                                   data-ref="{{ domain.encoded_ref }}"
+                                   id="chk_{{ domain.encoded_ref }}">
+                        </td>
+                        <td>
+                            <label for="chk_{{ domain.encoded_ref }}" class="mb-0">
+                                <strong>{{ domain.ref }}</strong>
+                            </label>
+                        </td>
+                        <td>
+                            <input type="hidden"
+                                   class="dns-entity-value"
+                                   data-ref="{{ domain.encoded_ref }}"
+                                   value="">
+                            <span class="dns-entity-label text-muted fst-italic"
+                                  id="entity_label_{{ domain.encoded_ref }}">
+                                {{ __('Non définie', 'dnsmanager') }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
         {% endif %}
 
-        {# Domaines à restaurer depuis la corbeille #}
+        {# Domaines à restaurer #}
         {% if to_restore is not empty %}
-        <div class="card mb-4">
-            <div class="card-header bg-warning">
-                <h3 class="mb-0">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h3 class="card-title">
                     <i class="ti ti-restore me-2"></i>
                     {{ __('Domaines à restaurer (corbeille)', 'dnsmanager') }}
-                    <span class="badge bg-white text-warning ms-2">{{ to_restore|length }}</span>
+                    <span class="badge bg-warning ms-2">{{ to_restore|length }}</span>
                 </h3>
             </div>
-            <div class="card-body">
-                <p class="text-muted">{{ __('Ces domaines sont en corbeille dans GLPI mais présents chez le provider. Ils seront automatiquement restaurés et synchronisés.', 'dnsmanager') }}</p>
-                <ul class="list-group">
-                    {% for domain in to_restore %}
-                    <li class="list-group-item">
-                        <i class="ti ti-restore me-2 text-warning"></i>
-                        <strong>{{ domain.domain_data.name }}</strong>
-                        <input type="hidden" name="restore[]" value="{{ domain.domain_data.ref }}">
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-        {% endif %}
-
-        {# Domaines absents du provider - proposer suppression #}
-        {% if to_delete is not empty %}
-        <div class="card mb-4">
-            <div class="card-header bg-danger text-white">
-                <h3 class="mb-0">
-                    <i class="ti ti-trash me-2"></i>
-                    {{ __('Domaines absents du provider', 'dnsmanager') }}
-                    <span class="badge bg-white text-danger ms-2">{{ to_delete|length }}</span>
-                </h3>
-            </div>
-            <div class="card-body">
-                <p class="text-muted">{{ __('Ces domaines sont dans GLPI mais absents de tous les providers. Souhaitez-vous les mettre en corbeille ?', 'dnsmanager') }}</p>
-                <table class="table table-striped table-sm">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>{{ __('Domaine', 'dnsmanager') }}</th>
-                            <th>{{ __('Fournisseur', 'dnsmanager') }}</th>
-                            <th>{{ __('Compte', 'dnsmanager') }}</th>
-                            <th class="text-center">{{ __('Mettre en corbeille', 'dnsmanager') }}</th>
-                        </tr>
-                    </thead>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead><tr>
+                        <th width="30"><input type="checkbox" id="check-all-restore" class="form-check-input"></th>
+                        <th>{{ __('Domaine', 'dnsmanager') }}</th>
+                    </tr></thead>
                     <tbody>
-                        {% for domain in to_delete %}
-                        <tr>
-                            <td><strong>{{ domain.glpi_domain.name }}</strong></td>
-                            <td>{{ domain.account.provider_type|upper }}</td>
-                            <td>{{ domain.account.name }}</td>
-                            <td class="text-center">
-                                <input type="checkbox" name="delete[]" value="{{ domain.mapping.provider_ref }}"
-                                       class="form-check-input">
-                            </td>
-                        </tr>
-                        {% endfor %}
+                    {% for domain in to_restore %}
+                    <tr>
+                        <td>
+                            <input type="checkbox"
+                                   class="form-check-input dns-restore-checkbox"
+                                   data-ref="{{ domain.domain_data.name }}"
+                                   data-domain-id="{{ domain.mapping.domains_id }}"
+                                   id="rst_{{ loop.index }}"
+                                   checked>
+                        </td>
+                        <td><label for="rst_{{ loop.index }}">{{ domain.domain_data.name }}</label></td>
+                    </tr>
+                    {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
         {% endif %}
 
-        {# Résumé sync normale #}
+        {# Domaines à synchroniser #}
         {% if to_sync is not empty %}
-        <div class="card mb-4">
-            <div class="card-header bg-info text-white">
-                <h3 class="mb-0">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h3 class="card-title">
                     <i class="ti ti-refresh me-2"></i>
                     {{ __('Domaines à synchroniser', 'dnsmanager') }}
-                    <span class="badge bg-white text-info ms-2">{{ to_sync|length }}</span>
+                    <span class="badge bg-success ms-2">{{ to_sync|length }}</span>
                 </h3>
             </div>
             <div class="card-body">
-                <p class="text-muted">{{ __('Ces domaines seront synchronisés automatiquement.', 'dnsmanager') }}</p>
-                <ul class="list-group list-group-flush">
-                    {% for domain in to_sync %}
-                    <li class="list-group-item">
-                        <i class="ti ti-check me-2 text-success"></i>
-                        {{ domain.domain_data.name }}
-                    </li>
-                    {% endfor %}
+                <ul class="list-unstyled mb-0">
+                {% for domain in to_sync %}
+                    <li><i class="ti ti-circle-check text-success me-1"></i>{{ domain.domain_data.name }}</li>
+                {% endfor %}
                 </ul>
             </div>
         </div>
         {% endif %}
 
-        {# Boutons #}
-        <div class="d-flex gap-3 mb-4">
-            <button type="submit" class="btn btn-primary btn-lg">
-                <i class="ti ti-player-play me-2"></i>{{ __('Import + Synchronisation', 'dnsmanager') }}
-            </button>
-            <a href="{{ webdir }}/front/account.form.php?id={{ account_id }}" class="btn btn-secondary btn-lg">
-                <i class="ti ti-x me-2"></i>{{ __('Annuler', 'dnsmanager') }}
+        {# Domaines absents #}
+        {% if to_delete is not empty %}
+        <div class="card mb-3">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="ti ti-trash me-2"></i>
+                    {{ __('Domaines absents du provider', 'dnsmanager') }}
+                    <span class="badge bg-danger ms-2">{{ to_delete|length }}</span>
+                </h3>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead><tr>
+                        <th width="30"></th>
+                        <th>{{ __('Domaine', 'dnsmanager') }}</th>
+                    </tr></thead>
+                    <tbody>
+                    {% for domain in to_delete %}
+                    <tr>
+                        <td>
+                            <input type="checkbox"
+                                   class="form-check-input dns-delete-checkbox"
+                                   data-domain-id="{{ domain.mapping.domains_id }}"
+                                   id="del_{{ loop.index }}">
+                        </td>
+                        <td><label for="del_{{ loop.index }}">{{ domain.domain_data.name }}</label></td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {# Bouton retour #}
+        <div class="mt-2">
+            <a href="{{ webdir }}/front/account.form.php?id={{ account_id }}" class="btn btn-outline-secondary">
+                <i class="ti ti-arrow-left me-1"></i>{{ __('Retour', 'dnsmanager') }}
             </a>
         </div>
 
-    </form>
+    </div>
 </div>
-{% endblock %}
+
+<script>
+// ===== Tout cocher =====
+document.getElementById('check-all-import') && document.getElementById('check-all-import').addEventListener('change', function() {
+    document.querySelectorAll('.dns-import-checkbox').forEach(function(cb) { cb.checked = this.checked; }, this);
+});
+document.getElementById('check-all-restore') && document.getElementById('check-all-restore').addEventListener('change', function() {
+    document.querySelectorAll('.dns-restore-checkbox').forEach(function(cb) { cb.checked = this.checked; }, this);
+});
+
+// ===== Ouvrir le panneau Definir entite =====
+document.getElementById('dns-action-set-entity') && document.getElementById('dns-action-set-entity').addEventListener('click', function(e) {
+    e.preventDefault();
+    var checked = document.querySelectorAll('.dns-import-checkbox:checked');
+    if (checked.length === 0) {
+        alert('{{ __("Veuillez sélectionner au moins un domaine.", "dnsmanager") }}');
+        return;
+    }
+    document.getElementById('dns-panel-count').textContent = checked.length + ' {{ __("domaine(s) sélectionné(s)", "dnsmanager") }}';
+    // Réinitialiser le select à vide à chaque ouverture
+    var sel = document.querySelector('select[name="modal_entity_id"]');
+    if (sel && window.$ && $(sel).data('select2')) {
+        sel.innerHTML = '<option value="0">-- {{ __("Choisir une entité", "dnsmanager") }} --</option>';
+        $(sel).val(0).trigger('change');
+    }
+    document.getElementById('dns-entity-panel').style.display = '';
+    document.getElementById('dns-entity-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Désactiver le bouton Actions tant que le panneau est ouvert (évite les clics accidentels)
+    var actionsBtn = document.getElementById('dns-actions-btn');
+    if (actionsBtn) {
+        actionsBtn.disabled = true;
+        actionsBtn.classList.add('disabled');
+        actionsBtn.style.pointerEvents = 'none';
+        actionsBtn.style.opacity = '0.5';
+        actionsBtn.classList.remove('show');
+        actionsBtn.setAttribute('aria-expanded', 'false');
+        // Fermer + cacher le menu déroulant lui-même (pas juste le bouton)
+        var menu = actionsBtn.parentElement.querySelector('.dropdown-menu');
+        if (menu) {
+            menu.classList.remove('show');
+            menu.style.display = 'none';
+        }
+        if (window.bootstrap) {
+            var dd = bootstrap.Dropdown.getInstance(actionsBtn);
+            if (dd) dd.hide();
+        }
+    }
+});
+
+// ===== Annuler le panneau =====
+document.getElementById('dns-entity-cancel') && document.getElementById('dns-entity-cancel').addEventListener('click', function() {
+    document.getElementById('dns-entity-panel').style.display = 'none';
+    var actionsBtn = document.getElementById('dns-actions-btn');
+    if (actionsBtn) { actionsBtn.disabled = false; actionsBtn.classList.remove('disabled'); actionsBtn.style.pointerEvents = ''; actionsBtn.style.opacity = ''; var menu = actionsBtn.parentElement.querySelector('.dropdown-menu'); if (menu) menu.style.display = ''; }
+});
+
+// ===== Appliquer entite aux domaines coches =====
+document.getElementById('dns-entity-confirm') && document.getElementById('dns-entity-confirm').addEventListener('click', function() {
+    var sel = document.querySelector('select[name="modal_entity_id"]');
+    if (!sel || !sel.value || parseInt(sel.value) <= 0) {
+        alert('{{ __("Veuillez choisir une entité.", "dnsmanager") }}');
+        return;
+    }
+    var entityId = sel.value;
+    var entityLabel = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : entityId;
+    if (window.$ && $(sel).data('select2')) {
+        var s2data = $(sel).select2('data');
+        if (s2data && s2data[0]) entityLabel = s2data[0].text;
+    }
+
+    document.querySelectorAll('.dns-import-checkbox:checked').forEach(function(cb) {
+        var ref = cb.dataset.ref;
+        var hidden = document.querySelector('.dns-entity-value[data-ref="' + ref + '"]');
+        if (hidden) hidden.value = entityId;
+        var label = document.getElementById('entity_label_' + ref);
+        if (label) {
+            label.className = 'dns-entity-label text-success fw-bold';
+            label.innerHTML = '<i class="ti ti-building me-1"></i>' + entityLabel;
+        }
+        cb.checked = false;
+    });
+    var checkAll = document.getElementById('check-all-import');
+    if (checkAll) checkAll.checked = false;
+
+    document.getElementById('dns-entity-panel').style.display = 'none';
+    var actionsBtn = document.getElementById('dns-actions-btn');
+    if (actionsBtn) { actionsBtn.disabled = false; actionsBtn.classList.remove('disabled'); actionsBtn.style.pointerEvents = ''; actionsBtn.style.opacity = ''; var menu = actionsBtn.parentElement.querySelector('.dropdown-menu'); if (menu) menu.style.display = ''; }
+});
+
+// ===== Action : Desaffecter entite des domaines coches =====
+document.getElementById('dns-action-unset-entity') && document.getElementById('dns-action-unset-entity').addEventListener('click', function(e) {
+    e.preventDefault();
+    var checked = document.querySelectorAll('.dns-import-checkbox:checked');
+    if (checked.length === 0) {
+        alert('{{ __("Veuillez sélectionner au moins un domaine.", "dnsmanager") }}');
+        return;
+    }
+    checked.forEach(function(cb) {
+        var ref = cb.dataset.ref;
+        var hidden = document.querySelector('.dns-entity-value[data-ref="' + ref + '"]');
+        if (hidden) hidden.value = '';
+        var label = document.getElementById('entity_label_' + ref);
+        if (label) {
+            label.className = 'dns-entity-label text-muted fst-italic';
+            label.innerHTML = '{{ __("Non définie", "dnsmanager") }}';
+        }
+        cb.checked = false;
+    });
+    var checkAll = document.getElementById('check-all-import');
+    if (checkAll) checkAll.checked = false;
+    // Fermer le panneau de sélection d'entité s'il était ouvert (état incohérent sinon)
+    var panel = document.getElementById('dns-entity-panel');
+    if (panel) panel.style.display = 'none';
+    var actionsBtn2 = document.getElementById('dns-actions-btn');
+    if (actionsBtn2) { actionsBtn2.disabled = false; actionsBtn2.classList.remove('disabled'); actionsBtn2.style.pointerEvents = ''; actionsBtn2.style.opacity = ''; var menu2 = actionsBtn2.parentElement.querySelector('.dropdown-menu'); if (menu2) menu2.style.display = ''; }
+});
+
+// ===== Réinitialiser le select après fermeture de la popup GLPI (creation via +) =====
+document.addEventListener('hidden.bs.modal', function(e) {
+    // Ne réagir qu'aux modales de type "add_*" générées par GLPI pour Entity
+    if (e.target.id && e.target.id.indexOf('add_dropdown_modal_entity_id') === 0) {
+        var sel = document.querySelector('select[name="modal_entity_id"]');
+        if (sel && window.$ && $(sel).data('select2')) {
+            sel.innerHTML = '<option value="0">-- {{ __("Choisir une entité", "dnsmanager") }} --</option>';
+            $(sel).val(0).trigger('change');
+        }
+    }
+});
+
+// ===== Desaffectation (clic sur entite affichee) =====
+document.addEventListener('click', function(e) {
+    var span = e.target.closest('.dns-entity-label');
+    if (!span) return;
+    var ref = span.id.replace('entity_label_', '');
+    var hidden = document.querySelector('.dns-entity-value[data-ref="' + ref + '"]');
+    if (hidden && parseInt(hidden.value) > 0) {
+        hidden.value = '';
+        span.className = 'dns-entity-label text-muted fst-italic';
+        span.innerHTML = '{{ __("Non définie", "dnsmanager") }}';
+        var cb = document.querySelector('.dns-import-checkbox[data-ref="' + ref + '"]');
+        if (cb) cb.checked = false;
+    }
+});
+</script>
+<script src="{{ webdir }}/public/domain.import.js"></script>
