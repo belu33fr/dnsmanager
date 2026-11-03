@@ -5,26 +5,38 @@
  */
 
 // ---------------------------------------------------------------------------
-// Aide contextuelle ("?") : fermeture au clic ailleurs et sur Échap.
-// Branché une seule fois par page.
+// Aide contextuelle ("?") : GLPI crée ces infobulles sans préciser de déclencheur,
+// donc Bootstrap utilise "survol + focus" et l'infobulle peut rester figée. Sur cette
+// page, on les recrée avec le seul déclencheur "survol" et on les ferme au clic.
+// Idempotent. Le marquage data-bs-original-title empêche GLPI de les réinitialiser
+// (son initialisation ignore les éléments qui portent déjà cet attribut).
 // ---------------------------------------------------------------------------
-(function () {
-    if (window.__dnsmanagerHelpFix) return;
-    window.__dnsmanagerHelpFix = true;
+window.dnsmanagerFixHelp = function () {
+    if (!window.bootstrap || !bootstrap.Tooltip) return;
+    document.querySelectorAll('.form-help[data-bs-toggle="tooltip"]').forEach(function (el) {
+        if (el.dataset.dnsmanagerHelp === '1') return;
+        el.dataset.dnsmanagerHelp = '1';
 
-    function hideAll(clicked) {
-        if (!window.bootstrap) return;
-        document.querySelectorAll('[data-bs-toggle="popover"], [data-bs-toggle="tooltip"]').forEach(function (el) {
-            if (clicked && el.contains(clicked)) return;
-            var kind = el.getAttribute('data-bs-toggle') === 'popover' ? bootstrap.Popover : bootstrap.Tooltip;
-            var inst = kind && kind.getInstance(el);
-            if (!inst) return;
-            if (clicked && inst.tip && inst.tip.contains(clicked)) return;
-            inst.hide();
+        var old = bootstrap.Tooltip.getInstance(el);
+        if (old) old.dispose();
+
+        var tip = new bootstrap.Tooltip(el, {
+            trigger:   'hover',
+            placement: el.getAttribute('data-bs-placement') || 'top',
+            html:      el.getAttribute('data-bs-html') === 'true',
+            title:     el.getAttribute('data-bs-title') || '',
         });
-    }
-    document.addEventListener('click', function (e) { hideAll(e.target); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hideAll(null); });
+        el.setAttribute('data-bs-original-title', el.getAttribute('data-bs-title') || '');
+
+        el.addEventListener('click',      function () { tip.hide(); });
+        el.addEventListener('mouseleave', function () { tip.hide(); });
+    });
+};
+(function () {
+    function run() { window.dnsmanagerFixHelp(); }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
+    // GLPI peut initialiser ses infobulles après nous : repasser quelques fois (idempotent)
+    [300, 1200, 3000].forEach(function (ms) { setTimeout(run, ms); });
 })();
 
 window.initDnsManagerForm = function initDnsManagerForm() {
@@ -183,6 +195,7 @@ window.initDnsManagerForm = function initDnsManagerForm() {
     providerSelect.addEventListener('change', function () { loadProvider(this.value); });
 
     var result = document.getElementById('dns-action-result');
+    window.dnsmanagerFixHelp();
 
     // -----------------------------------------------------------------------
     // Test de connexion
