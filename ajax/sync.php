@@ -14,6 +14,11 @@ Session::checkRight('plugin_dnsmanager_account', READ);
 
 header('Content-Type: application/json');
 
+// Libérer le verrou de session dès que les droits sont vérifiés : sans cela, une
+// requête longue (synchronisation) bloque toutes les autres requêtes de la même
+// session (test de connexion, préférences, autres onglets) jusqu'à sa fin.
+session_write_close();
+
 $action    = $_POST['action'] ?? '';
 $accountId = (int)($_POST['account_id'] ?? 0);
 
@@ -77,7 +82,10 @@ try {
         // Retourne la liste des provider_ref des domaines mappés pour ce compte
         Session::checkRight('plugin_dnsmanager_sync', UPDATE);
         if (!$accountId) throw new \InvalidArgumentException('ID de compte manquant.');
-        $domains = [];
+        $domains  = [];
+        // Synchro manuelle d'un utilisateur : uniquement les domaines de ses entités actives
+        $restrict = !empty($_POST['restrict_entities']);
+        $allowedEntities = $restrict ? Session::getActiveEntities() : [];
         foreach ($DB->request([
             'FROM'  => 'glpi_plugin_dnsmanager_domains',
             'WHERE' => ['accounts_id' => $accountId],
@@ -87,7 +95,7 @@ try {
                 'FROM'  => 'glpi_domains',
                 'WHERE' => ['id' => (int)$row['domains_id'], 'is_deleted' => 0],
             ])->current();
-            if ($glpiDomain) {
+            if ($glpiDomain && (!$restrict || in_array((int)$glpiDomain['entities_id'], $allowedEntities, true))) {
                 $domains[] = $row['provider_ref'];
             }
         }
@@ -183,9 +191,32 @@ try {
             $importer = new Importer($accountId, false);
             $result   = $importer->syncDomainByRef($domainRef);
             echo json_encode([
-                'success' => true,
-                'message' => ($result['records_added'] ?? 0) . ' créé(s), ' . ($result['records_updated'] ?? 0) . ' mis à jour.',
+                'success'         => true,
+                'message'         => ($result['records_added'] ?? 0) . ' créé(s), ' . ($result['records_updated'] ?? 0) . ' mis à jour.',
+                'records_added'   => (int)($result['records_added']   ?? 0),
+                'records_updated' => (int)($result['records_updated'] ?? 0),
+                'errors'          => array_values($result['errors'] ?? []),
             ]);
+            break;
+
+        case 'account_stats':
+            // Comptage chez l'hébergeur (à la demande : un appel API léger, jamais automatique)
+            global $DB;
+            if (!$accountId) throw new \InvalidArgumentException('ID de compte manquant.');
+            $provider = Account::getProvider($accountId);
+            if (!method_exists($provider, 'listDomainRefs')) {
+                throw new \RuntimeException('Comptage non disponible pour ce provider.');
+            }
+            $refs   = $provider->listDomainRefs();
+            $mapped = [];
+            foreach ($DB->request(['FROM' => 'glpi_plugin_dnsmanager_domains', 'WHERE' => ['accounts_id' => $accountId]]) as $row) {
+                $mapped[(string)$row['provider_ref']] = true;
+            }
+            $notLinked = 0;
+            foreach ($refs as $ref) {
+                if (!isset($mapped[(string)$ref])) $notLinked++;
+            }
+            echo json_encode(['success' => true, 'provider_count' => count($refs), 'not_linked' => $notLinked]);
             break;
 
         default:

@@ -71,7 +71,7 @@ class Account extends CommonDBTM
 
     public static function getMenuName(): string
     {
-        return 'DNS Hébergeurs';
+        return __('DNS Hébergeurs', 'dnsmanager');
     }
 
     public static function getMenuContent(): array
@@ -145,6 +145,42 @@ class Account extends CommonDBTM
             }
         }
 
+        // Statistiques du compte (comptes existants uniquement)
+        $stats     = null;
+        $accountId = (int)($this->fields['id'] ?? 0);
+        if ($accountId > 0) {
+            global $DB;
+            $cnt = $DB->request([
+                'COUNT'      => 'cpt',
+                'FROM'       => 'glpi_plugin_dnsmanager_domains',
+                'INNER JOIN' => ['glpi_domains' => ['ON' => ['glpi_domains' => 'id', 'glpi_plugin_dnsmanager_domains' => 'domains_id']]],
+                'WHERE'      => ['glpi_plugin_dnsmanager_domains.accounts_id' => $accountId, 'glpi_domains.is_deleted' => 0],
+            ])->current();
+            $lastRec = $DB->request([
+                'FROM'  => 'glpi_plugin_dnsmanager_records',
+                'WHERE' => ['accounts_id' => $accountId],
+                'ORDER' => 'last_sync_at DESC',
+                'LIMIT' => 1,
+            ])->current();
+            $lastLog = $DB->request([
+                'FROM'  => 'glpi_plugin_dnsmanager_synclogs',
+                'WHERE' => ['accounts_id' => $accountId],
+                'ORDER' => 'id DESC',
+                'LIMIT' => 1,
+            ])->current();
+
+            $logText = '';
+            if ($lastLog && !empty($lastLog['finished_at'])) {
+                $logText = \Html::convDateTime($lastLog['finished_at'])
+                    . ' (' . ($lastLog['status'] === 'success' ? __('réussie', 'dnsmanager') : __('en échec', 'dnsmanager')) . ')';
+            }
+            $stats = [
+                'glpi_domains'      => (int)($cnt['cpt'] ?? 0),
+                'last_records_sync' => ($lastRec && !empty($lastRec['last_sync_at'])) ? \Html::convDateTime($lastRec['last_sync_at']) : '',
+                'last_log'          => $logText,
+            ];
+        }
+
         $twig_vars = [
             'item'                   => $this,
             'params'                 => $options,
@@ -156,6 +192,7 @@ class Account extends CommonDBTM
             'can_sync'               => Right::canSync(),
             'accounts_class'         => $accountsClass,
             'accounts_type_condition' => $accountsTypeCondition,
+            'stats'                  => $stats,
         ];
 
         \Glpi\Application\View\TemplateRenderer::getInstance()->display(

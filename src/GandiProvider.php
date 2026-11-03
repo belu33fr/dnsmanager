@@ -97,6 +97,12 @@ class GandiProvider implements ProviderInterface
         return implode("\n", $lines);
     }
 
+    /** Références des domaines du compte (utilisé pour les statistiques). */
+    public function listDomainRefs(): array
+    {
+        return array_map(static fn(array $d): string => (string)$d['ref'], $this->listDomains());
+    }
+
     public function listDomains(): array
     {
         $domains = [];

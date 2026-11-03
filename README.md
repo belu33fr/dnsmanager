@@ -4,7 +4,7 @@ Plugin de gestion et synchronisation des enregistrements DNS pour GLPI 11.
 
 [![GLPI](https://img.shields.io/badge/GLPI-11.0%2B-blue)](https://glpi-project.org)
 [![License](https://img.shields.io/badge/License-GPL%20v2%2B-green)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-3.9.7-orange)](https://github.com/belu33fr/dnsmanager/releases)
+[![Version](https://img.shields.io/badge/Version-3.9.8-orange)](https://github.com/belu33fr/dnsmanager/releases)
 
 ## Fonctionnalités
 
@@ -26,7 +26,7 @@ Plugin de gestion et synchronisation des enregistrements DNS pour GLPI 11.
 
 ```bash
 cd /var/glpi/plugins/
-unzip dnsmanager-3.9.7.zip
+unzip dnsmanager-3.9.8.zip
 chown -R www-data:www-data dnsmanager/
 ```
 

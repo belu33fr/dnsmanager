@@ -119,6 +119,16 @@ class OvhProvider implements ProviderInterface
         return implode("\n", $lines);
     }
 
+    /**
+     * Références des domaines (zones) du compte, en un seul appel léger
+     * (listDomains() fait un appel par zone). Utilisé pour les statistiques.
+     */
+    public function listDomainRefs(): array
+    {
+        $zones = $this->get('/domain/zone');
+        return is_array($zones) ? array_map('strval', $zones) : [];
+    }
+
     public function listDomains(): array
     {
         $zones = $this->get('/domain/zone');

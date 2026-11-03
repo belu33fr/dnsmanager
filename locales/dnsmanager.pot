@@ -245,3 +245,214 @@ msgstr ""
 
 msgid "Modifier"
 msgstr ""
+
+msgid "(inchangé)"
+msgstr ""
+
+msgid "-- Choisir un endpoint --"
+msgstr ""
+
+msgid "Actif"
+msgstr ""
+
+msgid "Actions"
+msgstr ""
+
+msgid "Actualiser"
+msgstr ""
+
+msgid "Appliquer"
+msgstr ""
+
+msgid "Attention : l'enregistrement DNS a bien été %s dans GLPI, mais la répercussion chez le provider a échoué (%s). Vérifiez les droits API du compte, la synchronisation retentera automatiquement au prochain passage."
+msgstr ""
+
+msgid "Aucun credential requis."
+msgstr ""
+
+msgid "Aucun domaine à synchroniser pour ce compte."
+msgstr ""
+
+msgid "Choisir une entité"
+msgstr ""
+
+msgid "Commentaire"
+msgstr ""
+
+msgid "Compte DNS Hébergeurs"
+msgid_plural "Comptes DNS Hébergeurs"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Connexion réussie !"
+msgstr ""
+
+msgid "Dernier passage de synchronisation"
+msgstr ""
+
+msgid "Dernière synchronisation des enregistrements"
+msgstr ""
+
+msgid "Domaines chez l'hébergeur"
+msgstr ""
+
+msgid "Domaines dans GLPI (rattachés à ce compte)"
+msgstr ""
+
+msgid "Domaines de l'hébergeur non rattachés à GLPI"
+msgstr ""
+
+msgid "Définir l'entité"
+msgstr ""
+
+msgid "Délai maximal d'attente lors d'un conflit entre synchronisation et modification manuelle d'un enregistrement DNS (modification bidirectionnelle). Défaut : 20s."
+msgstr ""
+
+msgid "Délai renouvellement (mois)"
+msgstr ""
+
+msgid "Désaffecter l'entité"
+msgstr ""
+
+msgid "Endpoint"
+msgstr ""
+
+msgid "Entités dont les enfants sont considérés comme étant le lieu d'import des domaines. Exemple : GAFA > Sites > Bordeaux, et qu'on veut Bordeaux (pas Sites et au-dessus) : il faut mettre \"Sites\" dans ce champ. Si \"Sites\" est aussi marqué dans Intitulés entités import, alors GAFA et Bordeaux seront tous les deux proposés. S'applique à toute l'arborescence des entités."
+msgstr ""
+
+msgid "Entités dont les parents sont considérés comme étant le lieu d'import des domaines. Exemple : GAFA > Sites > Bordeaux, et qu'on veut GAFA (pas Sites et en dessous) : il faut mettre \"Sites\" dans ce champ."
+msgstr ""
+
+msgid "Erreur de communication."
+msgstr ""
+
+msgid "Groupe assigné automatiquement aux nouveaux comptes contact créés depuis le registrar (Statut : Actif, Type : Fournisseur)"
+msgstr ""
+
+msgid "Groupe concerné (comptes contacts créés)"
+msgstr ""
+
+msgid "Importer les domaines"
+msgstr ""
+
+msgid "Interrogation de l'hébergeur..."
+msgstr ""
+
+msgid "Intitulés enfants import (séparés par ;)"
+msgstr ""
+
+msgid "Journal de sync DNS"
+msgid_plural "Journaux de sync DNS"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "La désinstallation du plugin supprime uniquement les données DNS (comptes, mappings, logs). Les blocs de champs personnalisés (Facturation, Administratif Domaine, etc.) et leurs données sont conservés."
+msgstr ""
+
+msgid "Laissez les champs mot de passe vides pour conserver les credentials existants."
+msgstr ""
+
+msgid "Lancer la synchronisation"
+msgstr ""
+
+msgid "Libellé libre pour retrouver facilement cette clé API dans l'interface du provider (ex: OVH, Gandi) — utile si vous en gérez plusieurs."
+msgstr ""
+
+msgid "Liste blanche"
+msgstr ""
+
+msgid "Nom de la clé chez le provider"
+msgstr ""
+
+msgid "Nom exact du type (Configuration → Comptes → Type de compte). Utilisé pour filtrer les listes Administrateur/Technicien/Financier et pour la création automatique de comptes contact."
+msgstr ""
+
+msgid "Non définie"
+msgstr ""
+
+msgid "Rechercher nouveaux domaines"
+msgstr ""
+
+msgid "Retour"
+msgstr ""
+
+msgid "Statistiques"
+msgstr ""
+
+msgid "Synchronisation : {done} / {total} — {domain}"
+msgstr ""
+
+msgid "Synchronisation en cours..."
+msgstr ""
+
+msgid "Synchronisation interrompue : trop d'erreurs de communication consécutives."
+msgstr ""
+
+msgid "Terminé."
+msgstr ""
+
+msgid "Test en cours..."
+msgstr ""
+
+msgid "Timeout verrou domaine (secondes)"
+msgstr ""
+
+msgid "Type de compte pour les contacts registrar"
+msgstr ""
+
+msgid "Une synchronisation a modifié cet enregistrement entre-temps. Veuillez vérifier son état actuel avant de réessayer."
+msgstr ""
+
+msgid "Une synchronisation est en cours sur ce domaine, impossible d'effectuer %s pour le moment. Veuillez réessayer dans quelques instants."
+msgstr ""
+
+msgid "Veuillez choisir une entité."
+msgstr ""
+
+msgid "Veuillez sélectionner au moins un domaine."
+msgstr ""
+
+msgid "ajouté"
+msgstr ""
+
+msgid "cet ajout"
+msgstr ""
+
+msgid "cette modification"
+msgstr ""
+
+msgid "cette restauration"
+msgstr ""
+
+msgid "cette suppression"
+msgstr ""
+
+msgid "cette suppression définitive"
+msgstr ""
+
+msgid "domaine(s) sélectionné(s)"
+msgstr ""
+
+msgid "en échec"
+msgstr ""
+
+msgid "modifié"
+msgstr ""
+
+msgid "purgé"
+msgstr ""
+
+msgid "restauré"
+msgstr ""
+
+msgid "réussie"
+msgstr ""
+
+msgid "supprimé"
+msgstr ""
+
+msgid "{domains} domaine(s), {records} enregistrement(s)."
+msgstr ""
+
+msgid "Échec :"
+msgstr ""

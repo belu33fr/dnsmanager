@@ -1,2 +1,3 @@
 *.bak
 *.zip
+__pycache__/
