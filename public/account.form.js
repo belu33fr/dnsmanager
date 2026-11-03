@@ -78,6 +78,25 @@ window.initDnsManagerForm = function initDnsManagerForm() {
         });
     }
 
+    function fetchJson(params) {
+        return glpiFetch(syncUrl, params).then(function (r) {
+            return r.text().then(function (txt) {
+                try { return JSON.parse(txt); }
+                catch (e) {
+                    var err = new Error('HTTP ' + r.status);
+                    err.detail = txt.substring(0, 300);
+                    throw err;
+                }
+            });
+        });
+    }
+
+    // Message d'erreur de communication avec le code HTTP (diagnostic) ; détail en console
+    function commErr(e) {
+        if (e && e.detail && window.console) console.error('DNSManage', e.message, e.detail);
+        return t('commError') + (e && e.message ? ' (' + e.message + ')' : '');
+    }
+
     function renderEndpoints(endpoints) {
         var sel = document.getElementById('dns-endpoint-select');
         var sec = document.getElementById('dns-endpoint-section');
@@ -183,8 +202,7 @@ window.initDnsManagerForm = function initDnsManagerForm() {
             btnTest.disabled = true;
             result.innerHTML = '<div class="alert alert-info d-flex align-items-center">' + SPINNER
                 + '<span>' + esc(t('testRunning')) + '</span></div>';
-            glpiFetch(syncUrl, params)
-                .then(function (r) { return r.json(); })
+            fetchJson(params)
                 .then(function (d) {
                     btnTest.disabled = false;
                     if (d.success) {
@@ -196,9 +214,9 @@ window.initDnsManagerForm = function initDnsManagerForm() {
                             + esc(t('failure')) + '</strong> ' + esc(d.message) + '</div>';
                     }
                 })
-                .catch(function () {
+                .catch(function (e) {
                     btnTest.disabled = false;
-                    result.innerHTML = '<div class="alert alert-danger">' + esc(t('commError')) + '</div>';
+                    result.innerHTML = '<div class="alert alert-danger">' + esc(commErr(e)) + '</div>';
                 });
         });
     }
@@ -243,8 +261,7 @@ window.initDnsManagerForm = function initDnsManagerForm() {
                 if (index >= domains.length) { finish(false); return; }
                 var ref = domains[index];
                 showProgress(index, domains.length, ref);
-                glpiFetch(syncUrl, { action: 'sync_domain', account_id: accountId, domain_ref: ref })
-                    .then(function (r) { return r.json(); })
+                fetchJson({ action: 'sync_domain', account_id: accountId, domain_ref: ref })
                     .then(function (d) {
                         fails = 0;
                         if (d.success) {
@@ -256,8 +273,8 @@ window.initDnsManagerForm = function initDnsManagerForm() {
                         }
                         index++; next();
                     })
-                    .catch(function () {
-                        errors.push(ref + ' : ' + t('commError'));
+                    .catch(function (e) {
+                        errors.push(ref + ' : ' + commErr(e));
                         fails++; index++;
                         if (fails >= 3) { finish(true); return; }
                         next();
@@ -267,8 +284,7 @@ window.initDnsManagerForm = function initDnsManagerForm() {
             result.innerHTML = '<div class="alert alert-info d-flex align-items-center">' + SPINNER
                 + '<span>' + esc(t('syncStarting')) + '</span></div>';
 
-            glpiFetch(syncUrl, { action: 'get_sync_domains', account_id: accountId, restrict_entities: 1 })
-                .then(function (r) { return r.json(); })
+            fetchJson({ action: 'get_sync_domains', account_id: accountId, restrict_entities: 1 })
                 .then(function (d) {
                     if (!d.success) {
                         btnSync.disabled = false; syncRunning = false;
@@ -283,9 +299,9 @@ window.initDnsManagerForm = function initDnsManagerForm() {
                     }
                     next();
                 })
-                .catch(function () {
+                .catch(function (e) {
                     btnSync.disabled = false; syncRunning = false;
-                    result.innerHTML = '<div class="alert alert-danger">' + esc(t('commError')) + '</div>';
+                    result.innerHTML = '<div class="alert alert-danger">' + esc(commErr(e)) + '</div>';
                 });
         });
     }
@@ -300,8 +316,7 @@ window.initDnsManagerForm = function initDnsManagerForm() {
             var nl   = document.getElementById('dns-stat-notlinked');
             btnStats.disabled = true;
             slot.innerHTML = SPINNER + esc(t('statsRunning'));
-            glpiFetch(syncUrl, { action: 'account_stats', account_id: accountId })
-                .then(function (r) { return r.json(); })
+            fetchJson({ action: 'account_stats', account_id: accountId })
                 .then(function (d) {
                     btnStats.disabled = false;
                     if (d.success) {
@@ -311,9 +326,9 @@ window.initDnsManagerForm = function initDnsManagerForm() {
                         slot.innerHTML = '<span class="text-danger">' + esc(d.message) + '</span>';
                     }
                 })
-                .catch(function () {
+                .catch(function (e) {
                     btnStats.disabled = false;
-                    slot.innerHTML = '<span class="text-danger">' + esc(t('commError')) + '</span>';
+                    slot.innerHTML = '<span class="text-danger">' + esc(commErr(e)) + '</span>';
                 });
         });
     }

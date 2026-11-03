@@ -19,6 +19,10 @@ header('Content-Type: application/json');
 // session (test de connexion, préférences, autres onglets) jusqu'à sa fin.
 session_write_close();
 
+// $DB doit être déclaré ici : ce script est chargé dans une portée de fonction par GLPI 11,
+// et plusieurs actions l'utilisent sans le redéclarer.
+global $DB;
+
 $action    = $_POST['action'] ?? '';
 $accountId = (int)($_POST['account_id'] ?? 0);
 
