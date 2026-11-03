@@ -4,7 +4,7 @@
  * DNSManage - Plugin GLPI 11 de gestion DNS multi-provider
  */
 
-define('PLUGIN_DNSMANAGER_VERSION', '3.9.6');
+define('PLUGIN_DNSMANAGER_VERSION', '3.9.7');
 define('PLUGIN_DNSMANAGER_MIN_GLPI', '11.0.0');
 define('PLUGIN_DNSMANAGER_MAX_GLPI', '12.0.0');
 
@@ -15,6 +15,7 @@ use GlpiPlugin\Dnsmanager\Right;
 use GlpiPlugin\Dnsmanager\PluginConfig;
 use GlpiPlugin\Dnsmanager\DomainTab;
 use GlpiPlugin\Dnsmanager\RecordSync;
+use GlpiPlugin\Dnsmanager\PushGuard;
 
 function plugin_init_dnsmanager(): void
 {
@@ -59,20 +60,24 @@ function plugin_init_dnsmanager(): void
 
     $PLUGIN_HOOKS[Hooks::POST_ITEM_FORM]['dnsmanager'] = 'plugin_dnsmanager_post_item_form';
 
-    // Modification bidirectionnelle des enregistrements DNS (GLPI <-> provider)
-    // Périmètre actuel : OVH uniquement, comptes avec l'option explicitement activée.
-    // Voir docs/design-bidirectional-sync.md pour la conception complète.
-    $PLUGIN_HOOKS[Hooks::PRE_ITEM_ADD]['dnsmanager']    = ['DomainRecord' => [RecordSync::class, 'preAdd']];
-    $PLUGIN_HOOKS[Hooks::PRE_ITEM_UPDATE]['dnsmanager'] = ['DomainRecord' => [RecordSync::class, 'preUpdate']];
-    $PLUGIN_HOOKS[Hooks::PRE_ITEM_DELETE]['dnsmanager'] = ['DomainRecord' => [RecordSync::class, 'preDelete']];
-    $PLUGIN_HOOKS[Hooks::PRE_ITEM_PURGE]['dnsmanager']  = ['DomainRecord' => [RecordSync::class, 'prePurge']];
-    $PLUGIN_HOOKS[Hooks::PRE_ITEM_RESTORE]['dnsmanager'] = ['DomainRecord' => [RecordSync::class, 'preRestore']];
+    // Modification bidirectionnelle des enregistrements DNS (GLPI -> provider).
+    // VERROUILLÉE PAR DÉFAUT : les hooks ne sont même pas enregistrés tant que la
+    // directive serveur PLUGIN_DNSMANAGER_PUSH_ACCOUNTS n'est pas définie
+    // (config/local_define.php). Aucun réglage de l'interface ne peut l'activer.
+    // Voir src/PushGuard.php et docs/design-bidirectional-sync.md.
+    if (PushGuard::isAnyEnabled()) {
+        $PLUGIN_HOOKS[Hooks::PRE_ITEM_ADD]['dnsmanager']     = ['DomainRecord' => [RecordSync::class, 'preAdd']];
+        $PLUGIN_HOOKS[Hooks::PRE_ITEM_UPDATE]['dnsmanager']  = ['DomainRecord' => [RecordSync::class, 'preUpdate']];
+        $PLUGIN_HOOKS[Hooks::PRE_ITEM_DELETE]['dnsmanager']  = ['DomainRecord' => [RecordSync::class, 'preDelete']];
+        $PLUGIN_HOOKS[Hooks::PRE_ITEM_PURGE]['dnsmanager']   = ['DomainRecord' => [RecordSync::class, 'prePurge']];
+        $PLUGIN_HOOKS[Hooks::PRE_ITEM_RESTORE]['dnsmanager'] = ['DomainRecord' => [RecordSync::class, 'preRestore']];
 
-    $PLUGIN_HOOKS[Hooks::ITEM_ADD]['dnsmanager']    = ['DomainRecord' => [RecordSync::class, 'postAdd']];
-    $PLUGIN_HOOKS[Hooks::ITEM_UPDATE]['dnsmanager'] = ['DomainRecord' => [RecordSync::class, 'postUpdate']];
-    $PLUGIN_HOOKS[Hooks::ITEM_DELETE]['dnsmanager'] = ['DomainRecord' => [RecordSync::class, 'postDelete']];
-    $PLUGIN_HOOKS[Hooks::ITEM_PURGE]['dnsmanager']  = ['DomainRecord' => [RecordSync::class, 'postPurge']];
-    $PLUGIN_HOOKS[Hooks::ITEM_RESTORE]['dnsmanager'] = ['DomainRecord' => [RecordSync::class, 'postRestore']];
+        $PLUGIN_HOOKS[Hooks::ITEM_ADD]['dnsmanager']     = ['DomainRecord' => [RecordSync::class, 'postAdd']];
+        $PLUGIN_HOOKS[Hooks::ITEM_UPDATE]['dnsmanager']  = ['DomainRecord' => [RecordSync::class, 'postUpdate']];
+        $PLUGIN_HOOKS[Hooks::ITEM_DELETE]['dnsmanager']  = ['DomainRecord' => [RecordSync::class, 'postDelete']];
+        $PLUGIN_HOOKS[Hooks::ITEM_PURGE]['dnsmanager']   = ['DomainRecord' => [RecordSync::class, 'postPurge']];
+        $PLUGIN_HOOKS[Hooks::ITEM_RESTORE]['dnsmanager'] = ['DomainRecord' => [RecordSync::class, 'postRestore']];
+    }
 
     // Initialiser les droits dans la session courante
     Right::initProfile();

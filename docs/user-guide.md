@@ -75,15 +75,7 @@ Droits (Access Rules) à valider lors de la création de la Consumer Key — **l
 
 ⚠️ Le droit `GET /me` est indispensable — il est utilisé pour valider la connexion (test de connexion) et son omission provoque une erreur `403 This call has not been granted` même si les droits sur `/domain/*` sont corrects.
 
-Pour la fonctionnalité de modification bidirectionnelle des enregistrements DNS depuis GLPI (création/modification/suppression, réglable par compte via "Autoriser la modification bidirectionnelle" — désactivée par défaut, OVH uniquement pour l'instant), ajoutez également :
-
-| Méthode | Chemin |
-|---------|--------|
-| POST | `/domain/zone/*` |
-| PUT | `/domain/zone/*` |
-| DELETE | `/domain/zone/*` |
-
-⚠️ Depuis la version 3.9.3, le bouton **"Tester la connexion"** vérifie automatiquement la présence de ces droits d'écriture et l'affiche clairement (OK ou droits manquants avec le détail). **Testez systématiquement la connexion avant d'activer "Autoriser la modification bidirectionnelle"** sur un compte — sans ces droits, chaque ajout/modification/suppression d'enregistrement DNS échouera côté OVH (erreur 403) bien que l'action réussisse normalement dans GLPI ; un message d'avertissement s'affiche alors à l'utilisateur au moment de l'action concernée.
+**Aucun droit d'écriture n'est nécessaire — et il ne faut pas en accorder.** Depuis la version 3.9.7, le plugin ne modifie jamais rien chez le provider : les ajouts, modifications et suppressions faits dans GLPI restent locaux, et aucun réglage de l'interface ne permet de changer cela. La clé doit donc rester en **lecture seule** (règles ci-dessus). Le bouton **"Tester la connexion"** signale si la clé possède des droits d'écriture et recommande de les retirer.
 
 **Authentification Gandi** : Personal Access Token (PAT)
 → Créer sur https://admin.gandi.net → Sécurité → Personal Access Tokens
@@ -93,10 +85,7 @@ Pour la fonctionnalité de modification bidirectionnelle des enregistrements DNS
 Permissions à cocher lors de la création du token — **lecture seule**, suffisant pour la synchronisation actuelle :
 - `Voir les domaines` (`domain:view`)
 
-Pour anticiper la future fonctionnalité de modification bidirectionnelle, vous pouvez aussi cocher :
-- `Gérer les domaines` / gestion des enregistrements LiveDNS
-
-⚠️ Comme pour OVH, ces droits d'écriture ne sont pas encore exploités par le plugin.
+Aucun droit d'écriture n'est nécessaire ni exploité par le plugin.
 
 *Astuce* : le bouton **"Tester la connexion"** du formulaire de compte Gandi affiche, en cas de succès, l'organisation détectée pour ce token — pratique pour vérifier que le bon token est associé au bon compte.
 

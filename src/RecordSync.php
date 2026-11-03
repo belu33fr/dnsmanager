@@ -357,8 +357,8 @@ class RecordSync
      */
     private static function shouldHandle(int $domainsId): bool
     {
-        // Interrupteur général (paramétrage du plugin) : coupé = aucun verrou, aucun push.
-        if (!PluginConfig::isPushToProviderEnabled()) return false;
+        // Directive serveur absente = aucun verrou, aucun push (voir PushGuard).
+        if (!PushGuard::isAnyEnabled()) return false;
 
         if (DomainLock::isSyncInProgress($domainsId)) return false;
 

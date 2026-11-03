@@ -36,7 +36,7 @@ class PluginConfig extends CommonDBTM
     public static function save(array $input): void
     {
         global $DB;
-        $allowed = ['entity_labels', 'entity_children_labels', 'contact_account_type', 'domain_lock_timeout', 'push_to_provider_enabled'];
+        $allowed = ['entity_labels', 'entity_children_labels', 'contact_account_type', 'domain_lock_timeout'];
         foreach ($allowed as $key) {
             if (!isset($input[$key])) continue;
             $existing = $DB->request([
@@ -85,17 +85,6 @@ class PluginConfig extends CommonDBTM
     {
         $val = (int)self::getConfig('domain_lock_timeout', 20);
         return $val > 0 ? $val : 20;
-    }
-
-    /**
-     * Interrupteur GLOBAL de la répercussion GLPI -> provider (modification
-     * bidirectionnelle). Désactivé par défaut : tant qu'il est coupé, aucun hook
-     * ne pose de verrou ni n'appelle l'API du provider, quel que soit le réglage
-     * des comptes. La synchronisation provider -> GLPI n'est pas concernée.
-     */
-    public static function isPushToProviderEnabled(): bool
-    {
-        return (int)self::getConfig('push_to_provider_enabled', 0) === 1;
     }
 
     public static function showConfigForm(): void
@@ -164,25 +153,6 @@ class PluginConfig extends CommonDBTM
             echo "<input type='text' name='contact_account_type' class='form-control' value='" . htmlspecialchars($contactAccountType) . "'>";
         } else {
             echo "<span class='form-control-plaintext'>" . htmlspecialchars($contactAccountType) . "</span>";
-        }
-        echo "</div></div>";
-
-        // Interrupteur global push GLPI -> provider
-        $pushEnabled = self::isPushToProviderEnabled();
-        $helpPush = __('Interrupteur général de la modification bidirectionnelle. Désactivé : aucune modification faite dans GLPI n\'est répercutée chez les providers, quel que soit le réglage des comptes (la synchronisation provider vers GLPI continue normalement).', 'dnsmanager');
-        echo "<div class='mb-3 row'>";
-        echo "<label class='col-xxl-4 col-form-label'>";
-        echo __('Répercuter les modifications GLPI vers les providers', 'dnsmanager');
-        echo " <i class='ti ti-info-circle text-muted' data-bs-toggle='tooltip' title='" . htmlspecialchars($helpPush) . "'></i>";
-        echo "</label>";
-        echo "<div class='col-xxl-8'>";
-        if ($canedit) {
-            echo "<div class='form-check form-switch pt-2'>";
-            echo "<input type='hidden' name='push_to_provider_enabled' value='0'>";
-            echo "<input type='checkbox' class='form-check-input' role='switch' name='push_to_provider_enabled' value='1'" . ($pushEnabled ? " checked" : "") . ">";
-            echo "</div>";
-        } else {
-            echo "<span class='form-control-plaintext'>" . ($pushEnabled ? __('Activé', 'dnsmanager') : __('Désactivé', 'dnsmanager')) . "</span>";
         }
         echo "</div></div>";
 

@@ -528,19 +528,22 @@ class Account extends CommonDBTM
     }
 
     /**
-     * Indique si la modification bidirectionnelle des enregistrements DNS
-     * est activée pour ce compte. Réservée pour l'instant au provider OVH.
+     * Indique si la modification bidirectionnelle (GLPI -> provider) est autorisée
+     * pour ce compte. Uniquement via la directive serveur PLUGIN_DNSMANAGER_PUSH_ACCOUNTS
+     * (voir PushGuard) : aucun réglage de l'interface n'intervient. OVH uniquement.
      */
     public static function hasBidirectionalSync(int $accountId): bool
     {
         global $DB;
+
+        if (!PushGuard::isEnabledForAccount($accountId)) return false;
+
         $row = $DB->request([
             'FROM'  => self::getTable(),
             'WHERE' => ['id' => $accountId],
         ])->current();
 
         if (!$row) return false;
-        if (empty($row['allow_bidirectional_sync'])) return false;
 
         // Périmètre actuel : OVH uniquement
         return ($row['provider_type'] ?? '') === 'ovh';

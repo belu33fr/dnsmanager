@@ -63,33 +63,6 @@
             'min': 1, 'max': 12
         }) }}
 
-        <div class="mb-3 row">
-            <label class="col-xxl-4 col-form-label">{{ __('Autoriser la modification bidirectionnelle', 'dnsmanager') }}</label>
-            <div class="col-xxl-8">
-                <div class="form-check form-switch pt-2">
-                    <input type="hidden" name="allow_bidirectional_sync" value="0">
-                    <input type="checkbox" id="dnsmanager-bidir-switch" class="form-check-input dnsmanager-bidir-switch" role="switch"
-                           name="allow_bidirectional_sync" value="1"
-                           {% if item.fields['allow_bidirectional_sync'] %}checked{% endif %}>
-                </div>
-                <style>
-                    /* Actif = orange soutenu (signal d'avertissement, fonctionnalité qui écrit réellement chez le provider) */
-                    /* Inactif = gris clair standard, discret */
-                    .dnsmanager-bidir-switch:checked {
-                        background-color: #f0932b !important;
-                        border-color: #d97706 !important;
-                    }
-                    .dnsmanager-bidir-switch:not(:checked) {
-                        background-color: #e9ecef;
-                        border-color: #ced4da;
-                    }
-                </style>
-                <div class="form-text text-muted">
-                    {{ __("Expérimental. Si activé, les ajouts/modifications/suppressions d'enregistrements DNS faits dans GLPI seront répercutés chez le provider (OVH uniquement pour l'instant). À activer avec prudence, de préférence sur un compte de test d'abord.", 'dnsmanager') }}
-                </div>
-            </div>
-        </div>
-
         {{ fields.smallTitle(__("Contacts par défaut (copiés à l'import)", "dnsmanager")) }}
 
         {# Groupe et Groupe responsable sont gérés automatiquement par GLPI dans l'en-tête #}

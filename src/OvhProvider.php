@@ -93,18 +93,26 @@ class OvhProvider implements ProviderInterface
         $lines = [];
 
         if (!empty($this->lastDiagnostic['write_rights_error'])) {
-            $lines[] = 'Droits d\'écriture (modification bidirectionnelle) : impossible à vérifier — ' . $this->lastDiagnostic['write_rights_error'];
+            $lines[] = 'Droits d\'écriture : impossible à vérifier — ' . $this->lastDiagnostic['write_rights_error'];
         } elseif (isset($this->lastDiagnostic['write_rights'])) {
-            $w = $this->lastDiagnostic['write_rights'];
-            $allGranted = $w['POST'] && $w['PUT'] && $w['DELETE'];
-            if ($allGranted) {
-                $lines[] = 'Droits d\'écriture (modification bidirectionnelle) : OK — POST/PUT/DELETE sur /domain/zone/* accordés.';
+            $w        = $this->lastDiagnostic['write_rights'];
+            $anyWrite = $w['POST'] || $w['PUT'] || $w['DELETE'];
+
+            if (!PushGuard::isAnyEnabled()) {
+                // Cas normal : la modification depuis GLPI est désactivée, lecture seule suffisante.
+                if ($anyWrite) {
+                    $lines[] = 'Droits d\'écriture : ATTENTION — cette clé autorise des écritures sur /domain/zone/* ; la modification depuis GLPI est désactivée dans ce plugin, la lecture seule suffit. Par précaution, régénérez la Consumer Key sans droits POST/PUT/DELETE.';
+                } else {
+                    $lines[] = 'Droits d\'écriture : aucun (clé en lecture seule) — conforme, la modification depuis GLPI est désactivée dans ce plugin.';
+                }
+            } elseif ($w['POST'] && $w['PUT'] && $w['DELETE']) {
+                $lines[] = 'Droits d\'écriture : POST/PUT/DELETE sur /domain/zone/* accordés.';
             } else {
                 $missing = [];
                 foreach (['POST', 'PUT', 'DELETE'] as $m) {
                     if (!$w[$m]) $missing[] = $m;
                 }
-                $lines[] = 'Droits d\'écriture (modification bidirectionnelle) : INCOMPLETS — méthode(s) manquante(s) sur /domain/zone/* : ' . implode(', ', $missing) . '. La lecture/synchronisation classique fonctionne normalement, mais la modification bidirectionnelle échouera (403) tant que ces droits ne sont pas ajoutés à la Consumer Key.';
+                $lines[] = 'Droits d\'écriture : INCOMPLETS — méthode(s) manquante(s) sur /domain/zone/* : ' . implode(', ', $missing) . '.';
             }
         }
 
@@ -260,6 +268,13 @@ class OvhProvider implements ProviderInterface
 
     private function rawCall(string $method, string $path, ?array $content): mixed
     {
+        // Verrou central : toute requête autre que GET (création, modification,
+        // suppression, refresh de zone) est refusée tant que l'écriture n'est pas
+        // activée côté serveur (voir PushGuard).
+        if (strtoupper($method) !== 'GET') {
+            PushGuard::assertWriteAllowed();
+        }
+
         $url  = $this->endpoint . $path;
         $body = ($content !== null && $method !== 'GET') ? json_encode($content, JSON_UNESCAPED_SLASHES) : '';
         $now  = time() + $this->getTimeDelta();

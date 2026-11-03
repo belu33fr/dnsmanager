@@ -213,3 +213,27 @@ Test réalisé via deux scripts dédiés (`test_domainlock.php` pour la mécaniq
 ---
 
 *Document rédigé le 2026-07-17/18, à discuter et amender avant tout début de codage.*
+
+---
+
+## 15. Verrouillage au niveau code (version 3.9.7)
+
+**Décision (2026-11-03)** : la répercussion GLPI -> provider est **impossible depuis l'interface**. Les deux interrupteurs précédents (case par compte, réglage global) sont supprimés. La fonction n'existe plus que sous forme de code dormant, activable uniquement par une directive PHP côté serveur.
+
+**Activation (administrateur du serveur uniquement, pour des essais)** — dans `/var/glpi/config/local_define.php` (à créer s'il n'existe pas, propriétaire `www-data`, droits 640) :
+
+```php
+<?php
+define('PLUGIN_DNSMANAGER_PUSH_ACCOUNTS', [1]);   // IDs des comptes DNS Hébergeurs autorisés
+```
+
+Directive absente, vide ou invalide = aucune écriture possible. Après modification : vider le cache GLPI. La directive liste des **IDs de comptes** : seuls ceux-là sont concernés, et uniquement s'ils sont de type OVH.
+
+**Trois verrous indépendants** :
+1. `setup.php` n'enregistre les hooks `PRE_ITEM_*` / `ITEM_*` sur `DomainRecord` que si la directive existe ;
+2. `RecordSync` et `Account::hasBidirectionalSync()` vérifient que le compte concerné est dans la liste ;
+3. `OvhProvider::rawCall()` refuse toute requête non-GET (y compris `/refresh`) sans la directive.
+
+**Garantie externe recommandée** : une Consumer Key OVH en lecture seule rend toute écriture impossible côté provider, quoi qu'il arrive dans le code. Le test de connexion signale une clé qui possède des droits d'écriture.
+
+La colonne `allow_bidirectional_sync` reste en base (inutilisée, sans effet) pour éviter une migration destructive.
