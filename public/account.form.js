@@ -324,7 +324,24 @@ window.initDnsManagerForm = function initDnsManagerForm() {
     // -----------------------------------------------------------------------
     var btnSync     = document.getElementById('dns-btn-sync');
     var syncRunning = false;
+    var cancelRequested = false;
     var tab         = window.dnsmanagerTab;
+
+    // Bouton "Annuler" (délégation : la zone de résultat est reconstruite à chaque domaine).
+    // L'annulation prend effet à la fin du domaine en cours (une requête serveur déjà
+    // partie ne peut pas être interrompue proprement).
+    result.addEventListener('click', function (e) {
+        var b = e.target.closest ? e.target.closest('#dns-btn-cancel') : null;
+        if (!b || !syncRunning || cancelRequested) return;
+        cancelRequested = true;
+        b.disabled = true;
+        var msg = document.getElementById('dns-sync-msg');
+        if (msg) msg.textContent = t('syncCancelling');
+    });
+    // Éviter de quitter la page par mégarde pendant une synchronisation
+    window.addEventListener('beforeunload', function (e) {
+        if (syncRunning) { e.preventDefault(); e.returnValue = ''; }
+    });
     tab.labels.sync    = t('tabSync');
     tab.labels.done    = t('tabDone');
     tab.labels.doneErr = t('tabDoneErr');
@@ -356,27 +373,37 @@ window.initDnsManagerForm = function initDnsManagerForm() {
 
             var domains = [], index = 0, okCount = 0, added = 0, updated = 0, errors = [], fails = 0;
             var t0 = Date.now(), apiMs = 0, apiCalls = 0, timings = [];
+            cancelRequested = false;
             tab.start();
 
             function showProgress(done, total, domain) {
                 var pct = total ? Math.round(done / total * 100) : 0;
+                // Fond neutre (lisible en thème clair comme sombre), barre cerclée d'un filet
                 result.innerHTML =
-                    '<div class="alert alert-info mb-2"><div class="d-flex align-items-center">' + SPINNER
-                    + '<span class="flex-grow-1">' + esc(fmt(t('syncProgress'), { done: done, total: total, domain: domain })) + '</span>'
-                    + '<strong class="ms-3">' + pct + ' %</strong></div></div>'
-                    + '<div class="progress" style="height:.75rem"><div class="progress-bar progress-bar-striped progress-bar-animated"'
-                    + ' role="progressbar" style="width:' + pct + '%" aria-valuenow="' + pct + '" aria-valuemin="0" aria-valuemax="100"></div></div>';
+                    '<div class="border rounded p-3">'
+                    + '<div class="d-flex align-items-center mb-2">' + SPINNER
+                    + '<span id="dns-sync-msg" class="flex-grow-1">' + esc(fmt(t('syncProgress'), { done: done, total: total, domain: domain })) + '</span>'
+                    + '<strong class="ms-3">' + pct + ' %</strong>'
+                    + '<button type="button" id="dns-btn-cancel" class="btn btn-sm btn-outline-danger ms-3">' + esc(t('cancel')) + '</button>'
+                    + '</div>'
+                    + '<div class="progress" style="height:1rem;border:1px solid var(--tblr-border-color, #adb5bd);background:var(--tblr-bg-surface-secondary, #f1f3f5)">'
+                    + '<div class="progress-bar bg-primary" role="progressbar" style="width:' + pct + '%;transition:width .3s"'
+                    + ' aria-valuenow="' + pct + '" aria-valuemin="0" aria-valuemax="100"></div></div>'
+                    + '</div>';
                 tab.update(pct);
             }
 
-            function finish(aborted) {
+            function finish(aborted, cancelled) {
                 var elapsed = Date.now() - t0;
                 btnSync.disabled = false;
                 syncRunning = false;
-                var bad  = aborted || errors.length > 0;
+                var bad  = aborted || cancelled || errors.length > 0;
+                var head = cancelled
+                    ? fmt(t('syncCancelled'), { done: index, total: domains.length })
+                    : t('syncDone') + ' ' + fmt(t('syncSummary'), { domains: okCount, records: added + updated });
                 var html = '<div class="alert ' + (bad ? 'alert-warning' : 'alert-success') + '"><i class="ti ti-circle-check me-2"></i><strong>'
-                    + esc(t('syncDone')) + '</strong> '
-                    + esc(fmt(t('syncSummary'), { domains: okCount, records: added + updated }));
+                    + esc(head) + '</strong>';
+                if (cancelled) html += ' ' + esc(fmt(t('syncSummary'), { domains: okCount, records: added + updated }));
                 if (aborted) html += '<br>' + esc(t('syncAborted'));
                 if (errors.length) html += '<br>' + esc(t('syncErrors')) + '<br>' + errors.map(esc).join('<br>');
 
@@ -397,12 +424,14 @@ window.initDnsManagerForm = function initDnsManagerForm() {
                 // Journal + rafraîchissement des statistiques de la fiche
                 fetchJson({
                     action: 'sync_log', account_id: accountId, duration: Math.round(elapsed / 1000),
-                    domains: okCount, records_added: added, records_updated: updated, errors: errors.join('\n'),
+                    domains: okCount, records_added: added, records_updated: updated,
+                    errors: errors.join('\n'), cancelled: cancelled ? 1 : 0,
                 }).then(refreshStats, refreshStats);
             }
 
             function next() {
-                if (index >= domains.length) { finish(false); return; }
+                if (cancelRequested)         { finish(false, true); return; }
+                if (index >= domains.length) { finish(false, false); return; }
                 var ref = domains[index];
                 showProgress(index, domains.length, ref);
                 fetchJson({ action: 'sync_domain', account_id: accountId, domain_ref: ref })
@@ -424,7 +453,7 @@ window.initDnsManagerForm = function initDnsManagerForm() {
                     .catch(function (e) {
                         errors.push(ref + ' : ' + commErr(e));
                         fails++; index++;
-                        if (fails >= 3) { finish(true); return; }
+                        if (fails >= 3) { finish(true, false); return; }
                         next();
                     });
             }

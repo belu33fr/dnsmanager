@@ -221,17 +221,20 @@ try {
             if (!$accountId) throw new \InvalidArgumentException('ID de compte manquant.');
             $duration = max(0, min(86400, (int)($_POST['duration'] ?? 0)));
             $errors   = trim((string)($_POST['errors'] ?? ''));
+            $cancelled = !empty($_POST['cancelled']);
             $finished = time();
             $DB->insert(Synclog::getTable(), [
                 'accounts_id'     => $accountId,
                 'started_at'      => date('Y-m-d H:i:s', $finished - $duration),
                 'finished_at'     => date('Y-m-d H:i:s', $finished),
-                'status'          => $errors === '' ? 'success' : 'failed',
+                'status'          => $cancelled ? 'partial' : ($errors === '' ? 'success' : 'failed'),
                 'domains_added'   => 0,
                 'domains_updated' => max(0, (int)($_POST['domains'] ?? 0)),
                 'records_added'   => max(0, (int)($_POST['records_added'] ?? 0)),
                 'records_updated' => max(0, (int)($_POST['records_updated'] ?? 0)),
-                'error_log'       => $errors === '' ? null : mb_substr('Sync rapide (manuelle) :' . "\n" . $errors, 0, 8000),
+                'error_log'       => ($cancelled || $errors !== '')
+                    ? mb_substr('Sync rapide (manuelle) :' . ($cancelled ? "\nAnnulée par l'utilisateur." : '') . ($errors !== '' ? "\n" . $errors : ''), 0, 8000)
+                    : null,
             ]);
             echo json_encode(['success' => true]);
             break;

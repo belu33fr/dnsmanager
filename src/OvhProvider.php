@@ -20,6 +20,7 @@ class OvhProvider implements ProviderInterface
     private string $consumerKey;
     private ?int   $timeDelta = null;
     private array  $lastDiagnostic = [];
+    private ?\CurlHandle $http = null;
 
     public function __construct(array $credentials, string $endpoint = 'ovh-eu')
     {
@@ -27,6 +28,36 @@ class OvhProvider implements ProviderInterface
         $this->appSecret   = $credentials['app_secret']   ?? '';
         $this->consumerKey = $credentials['consumer_key'] ?? '';
         $this->endpoint    = self::OVH_ENDPOINTS[$endpoint] ?? self::OVH_ENDPOINTS['ovh-eu'];
+    }
+
+    /**
+     * Poignée cURL unique, réutilisée pour tous les appels de cette instance : la
+     * connexion réseau (TCP + TLS) reste ouverte au lieu d'être rouverte à chaque appel.
+     * curl_reset() efface les options mais conserve la connexion. L'API OVH n'a pas de
+     * session : chaque requête est signée, seule la connexion réseau est réutilisée.
+     */
+    private function http(): \CurlHandle
+    {
+        if ($this->http === null) {
+            $this->http = curl_init();
+        } else {
+            curl_reset($this->http);
+        }
+        return $this->http;
+    }
+
+    /** Referme la connexion (erreur réseau, ou fin de vie de l'instance) ; la suivante sera neuve. */
+    private function dropHttp(): void
+    {
+        if ($this->http !== null) {
+            curl_close($this->http);
+            $this->http = null;
+        }
+    }
+
+    public function __destruct()
+    {
+        $this->dropHttp();
     }
 
     public static function getLabel(): string { return 'OVH / OVHcloud'; }
@@ -300,23 +331,37 @@ class OvhProvider implements ProviderInterface
             'X-Ovh-Timestamp: '   . $now,
         ];
 
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL            => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER     => $headers,
-            CURLOPT_TIMEOUT        => 30,
-            CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_CUSTOMREQUEST  => strtoupper($method),
-        ]);
-        if ($body !== '') curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+        $response  = false;
+        $httpCode  = 0;
+        $curlError = '';
+        for ($attempt = 1; $attempt <= 2; $attempt++) {
+            $ch = $this->http();
+            curl_setopt_array($ch, [
+                CURLOPT_URL            => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER     => $headers,
+                CURLOPT_TIMEOUT        => 30,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_CUSTOMREQUEST  => strtoupper($method),
+            ]);
+            if ($body !== '') curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
 
-        $__t0 = microtime(true);
-        $response  = curl_exec($ch);
-        ApiMetrics::record(microtime(true) - $__t0);
-        $httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
+            $__t0 = microtime(true);
+            $response  = curl_exec($ch);
+            ApiMetrics::record(microtime(true) - $__t0);
+            $httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+            $errno     = curl_errno($ch);
+
+            if ($curlError === '') break;
+
+            // Connexion réutilisée devenue invalide (fermée par OVH, coupure réseau) : on la
+            // referme et on retente UNE fois avec une connexion neuve. Uniquement pour les
+            // lectures (GET) et les erreurs de connexion — jamais pour une écriture (pas de
+            // double envoi) ni pour un délai dépassé (inutile d'attendre deux fois).
+            $this->dropHttp();
+            if (strtoupper($method) !== 'GET' || !in_array($errno, [7, 52, 55, 56], true)) break;
+        }
 
         if ($curlError) throw new \RuntimeException('Erreur cURL : ' . $curlError);
         if ($response === '' || $response === false) return null;
@@ -378,8 +423,9 @@ class OvhProvider implements ProviderInterface
 
     private function curlGet(string $url): ?string
     {
-        $ch = curl_init($url);
+        $ch = $this->http();
         curl_setopt_array($ch, [
+            CURLOPT_URL            => $url,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_USERAGENT      => 'DNSManage/2.0 GLPI-Plugin',
             CURLOPT_FOLLOWLOCATION => true,
@@ -390,7 +436,6 @@ class OvhProvider implements ProviderInterface
         $response = curl_exec($ch);
         ApiMetrics::record(microtime(true) - $__t0);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
         return ($response && $httpCode >= 200 && $httpCode < 300) ? $response : null;
     }
 

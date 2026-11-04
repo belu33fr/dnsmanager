@@ -587,7 +587,11 @@ class Account extends CommonDBTM
         $logText = '';
         if ($lastLog && !empty($lastLog['finished_at'])) {
             $logText = \Html::convDateTime($lastLog['finished_at'])
-                . ' (' . ($lastLog['status'] === 'success' ? __('réussie', 'dnsmanager') : __('en échec', 'dnsmanager')) . ')';
+                . ' (' . match ($lastLog['status']) {
+                    'success' => __('réussie', 'dnsmanager'),
+                    'partial' => __('partielle', 'dnsmanager'),
+                    default   => __('en échec', 'dnsmanager'),
+                } . ')';
         }
 
         return [

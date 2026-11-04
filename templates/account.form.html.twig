@@ -31,7 +31,10 @@
             syncSlowest:    {{ __("Domaines les plus lents :", "dnsmanager")|json_encode|raw }},
             tabSync:        {{ __("Synchronisation", "dnsmanager")|json_encode|raw }},
             tabDone:        {{ __("Synchronisation terminée", "dnsmanager")|json_encode|raw }},
-            tabDoneErr:     {{ __("Synchronisation terminée avec erreurs", "dnsmanager")|json_encode|raw }}
+            tabDoneErr:     {{ __("Synchronisation terminée avec erreurs", "dnsmanager")|json_encode|raw }},
+            cancel:         {{ __("Annuler", "dnsmanager")|json_encode|raw }},
+            syncCancelling: {{ __("Annulation en cours (fin du domaine en cours)...", "dnsmanager")|json_encode|raw }},
+            syncCancelled:  {{ __("Synchronisation annulée : {done} / {total} domaine(s) traité(s).", "dnsmanager")|json_encode|raw }}
         }
     };
     </script>

@@ -468,3 +468,12 @@ msgstr ""
 
 msgid "Synchronisation terminée avec erreurs"
 msgstr ""
+
+msgid "Annulation en cours (fin du domaine en cours)..."
+msgstr ""
+
+msgid "Synchronisation annulée : {done} / {total} domaine(s) traité(s)."
+msgstr ""
+
+msgid "partielle"
+msgstr ""
