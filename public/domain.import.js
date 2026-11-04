@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', function() {
     var progressDiv = document.getElementById('dns-import-progress');
     var progressBar = document.getElementById('dns-import-bar');
     var progressMsg = document.getElementById('dns-import-msg');
+    var progressPct = document.getElementById('dns-import-pct');
+    var progressSpin = document.getElementById('dns-import-spinner');
     var resultsList = document.getElementById('dns-import-results');
     var syncUrl     = form.dataset.syncUrl;
     var accountId   = form.dataset.accountId;
@@ -51,7 +53,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 done++;
                 var pct = Math.round((done / total) * 100);
                 progressBar.style.width = pct + '%';
-                progressBar.textContent = pct + '%';
+                if (progressPct) progressPct.textContent = pct + ' %';
                 addResult(getLabel(task), result.success, result.message);
                 if (result.success && onSuccess) {
                     onSuccess(task);
@@ -105,8 +107,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (btnSubmit) btnSubmit.style.pointerEvents = 'none';
         progressDiv.style.display = '';
         progressBar.style.width = '0%';
-        progressBar.textContent = '0%';
-        progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated';
+        if (progressPct) progressPct.textContent = '0 %';
+        if (progressSpin) progressSpin.style.display = '';
+        progressBar.className = 'progress-bar bg-primary';
         resultsList.innerHTML = '';
 
         var errors = 0;
@@ -150,6 +153,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         var cls = errors > 0 ? 'bg-warning' : 'bg-success';
         progressBar.className = 'progress-bar ' + cls;
+        if (progressSpin) progressSpin.style.display = 'none';
         progressMsg.textContent = 'Terminé ! ' + (errors > 0 ? errors + ' erreur(s).' : 'Aucune erreur.');
         if (btnSubmit) btnSubmit.style.pointerEvents = '';
     });

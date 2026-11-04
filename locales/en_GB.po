@@ -490,3 +490,15 @@ msgstr "Search complete: no new domain to import, restore or delete (%d domain(s
 
 msgid "vérifié le %s"
 msgstr "checked on %s"
+
+msgid "\"%s\" : %d domaine(s) à restaurer, %d absent(s) chez l'hébergeur (à supprimer) — <a href=\"%s\" class=\"btn btn-sm btn-warning ms-2\">Ouvrir l'import</a>"
+msgstr "\"%s\": %d domain(s) to restore, %d missing at the provider (to delete) — <a href=\"%s\" class=\"btn btn-sm btn-warning ms-2\">Open the import</a>"
+
+msgid "\"%s\" : aucun nouveau domaine à importer, restaurer ou supprimer."
+msgstr "\"%s\": no new domain to import, restore or delete."
+
+msgid "Lancer la recherche"
+msgstr "Start search"
+
+msgid "{domains} domaine(s) synchronisé(s) — {added} enregistrement(s) créé(s), {updated} modifié(s)."
+msgstr "{domains} domain(s) synchronised — {added} record(s) created, {updated} modified."

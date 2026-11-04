@@ -292,6 +292,7 @@ function plugin_dnsmanager_MassiveActions(string $type): array
         $actions[$class . $sep . 'change_whitelist'] = __('Modifier la liste blanche', 'dnsmanager');
         $actions[$class . $sep . 'change_renewal']   = __('Modifier le délai de renouvellement', 'dnsmanager');
         $actions[$class . $sep . 'sync']             = __('Synchroniser maintenant', 'dnsmanager');
+        $actions[$class . $sep . 'search_domains']   = __('Rechercher nouveaux domaines', 'dnsmanager');
     }
     return $actions;
     // v3.0.1 — ajouter les champs groupes dans les comptes DNS

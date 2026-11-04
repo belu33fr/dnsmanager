@@ -23,7 +23,7 @@
             syncStarting:   {{ __("Synchronisation en cours...", "dnsmanager")|json_encode|raw }},
             syncProgress:   {{ __("Synchronisation : {done} / {total} — {domain}", "dnsmanager")|json_encode|raw }},
             syncDone:       {{ __("Terminé.", "dnsmanager")|json_encode|raw }},
-            syncSummary:    {{ __("{domains} domaine(s), {records} enregistrement(s).", "dnsmanager")|json_encode|raw }},
+            syncSummary:    {{ __("{domains} domaine(s) synchronisé(s) — {added} enregistrement(s) créé(s), {updated} modifié(s).", "dnsmanager")|json_encode|raw }},
             syncErrors:     {{ __("Erreurs :", "dnsmanager")|json_encode|raw }},
             syncNothing:    {{ __("Aucun domaine à synchroniser pour ce compte.", "dnsmanager")|json_encode|raw }},
             syncAborted:    {{ __("Synchronisation interrompue : trop d'erreurs de communication consécutives.", "dnsmanager")|json_encode|raw }},

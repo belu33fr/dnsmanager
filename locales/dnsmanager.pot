@@ -489,3 +489,15 @@ msgstr ""
 
 msgid "vérifié le %s"
 msgstr ""
+
+msgid "\"%s\" : %d domaine(s) à restaurer, %d absent(s) chez l'hébergeur (à supprimer) — <a href=\"%s\" class=\"btn btn-sm btn-warning ms-2\">Ouvrir l'import</a>"
+msgstr ""
+
+msgid "\"%s\" : aucun nouveau domaine à importer, restaurer ou supprimer."
+msgstr ""
+
+msgid "Lancer la recherche"
+msgstr ""
+
+msgid "{domains} domaine(s) synchronisé(s) — {added} enregistrement(s) créé(s), {updated} modifié(s)."
+msgstr ""

@@ -394,7 +394,7 @@ window.initDnsManagerForm = function initDnsManagerForm() {
                     + '<div class="d-flex align-items-center mb-2">' + SPINNER
                     + '<span id="dns-sync-msg" class="flex-grow-1">' + esc(fmt(t('syncProgress'), { done: done, total: total, domain: domain })) + '</span>'
                     + '<strong class="ms-3">' + pct + ' %</strong>'
-                    + '<button type="button" id="dns-btn-cancel" class="btn btn-sm btn-outline-danger ms-3">' + esc(t('cancel')) + '</button>'
+                    + '<button type="button" id="dns-btn-cancel" class="btn btn-sm btn-outline-secondary ms-3"><i class="ti ti-x me-1"></i>' + esc(t('cancel')) + '</button>'
                     + '</div>'
                     + '<div class="progress" style="height:1rem;border:1px solid var(--tblr-border-color, #adb5bd);background:var(--tblr-bg-surface-secondary, #f1f3f5)">'
                     + '<div class="progress-bar bg-primary" role="progressbar" style="width:' + pct + '%;transition:width .3s"'
@@ -410,10 +410,10 @@ window.initDnsManagerForm = function initDnsManagerForm() {
                 var bad  = aborted || cancelled || errors.length > 0;
                 var head = cancelled
                     ? fmt(t('syncCancelled'), { done: index, total: domains.length })
-                    : t('syncDone') + ' ' + fmt(t('syncSummary'), { domains: okCount, records: added + updated });
+                    : t('syncDone') + ' ' + fmt(t('syncSummary'), { domains: okCount, added: added, updated: updated });
                 var html = '<div class="alert ' + (bad ? 'alert-warning' : 'alert-success') + '"><i class="ti ti-circle-check me-2"></i><strong>'
                     + esc(head) + '</strong>';
-                if (cancelled) html += ' ' + esc(fmt(t('syncSummary'), { domains: okCount, records: added + updated }));
+                if (cancelled) html += ' ' + esc(fmt(t('syncSummary'), { domains: okCount, added: added, updated: updated }));
                 if (aborted) html += '<br>' + esc(t('syncAborted'));
                 if (errors.length) html += '<br>' + esc(t('syncErrors')) + '<br>' + errors.map(esc).join('<br>');
 

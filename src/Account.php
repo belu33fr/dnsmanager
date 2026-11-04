@@ -308,6 +308,7 @@ class Account extends CommonDBTM
         $actions[self::class . $sep . 'change_whitelist'] = __('Modifier la liste blanche', 'dnsmanager');
         $actions[self::class . $sep . 'change_renewal']   = __('Modifier le délai de renouvellement', 'dnsmanager');
         $actions[self::class . $sep . 'sync']             = __('Synchroniser maintenant', 'dnsmanager');
+        $actions[self::class . $sep . 'search_domains']   = __('Rechercher nouveaux domaines', 'dnsmanager');
 
         return $actions;
     }
@@ -332,6 +333,9 @@ class Account extends CommonDBTM
 
             case 'sync':
                 echo Html::submit(__('Lancer la synchronisation', 'dnsmanager'), ['name' => 'massiveaction']);
+                return true;
+            case 'search_domains':
+                echo Html::submit(__('Lancer la recherche', 'dnsmanager'), ['name' => 'massiveaction']);
                 return true;
         }
         return parent::showMassiveActionsSubForm($ma);
@@ -403,27 +407,41 @@ class Account extends CommonDBTM
 
                         // Vérifier s'il y a des domaines à importer
                         $domainImporter = new \GlpiPlugin\Dnsmanager\DomainImporter($id, true);
+                        self::notifyNewDomains($id, $domainImporter->analyze());
+                    } catch (\Exception $e) {
+                        $ko++;
+                        $messages[] = $e->getMessage();
+                    }
+                }
+                break;
+
+            case 'search_domains':
+                // Recherche seule : n'écrit rien dans GLPI et ne synchronise aucun enregistrement
+                foreach ($ids as $id) {
+                    try {
+                        $domainImporter = new \GlpiPlugin\Dnsmanager\DomainImporter($id, true);
                         $analysis       = $domainImporter->analyze();
-                        if (!empty($analysis['to_import'])) {
-                            $names     = implode(', ', array_column(
-                                array_column($analysis['to_import'], 'domain_data'),
-                                'name'
-                            ));
-                            $account   = Account::getWithCredentials($id);
-                            $importUrl = Plugin::getWebDir('dnsmanager') . '/front/domain.import.php?account_id=' . $id;
+                        $account        = Account::getWithCredentials($id);
+                        $accountName    = htmlspecialchars($account['account']['name'] ?? '#' . $id);
+                        $importUrl      = Plugin::getWebDir('dnsmanager') . '/front/domain.import.php?account_id=' . $id;
+
+                        $found = self::notifyNewDomains($id, $analysis);
+                        $other = count($analysis['to_restore']) + count($analysis['to_delete']);
+                        if ($other > 0) {
                             \Session::addMessageAfterRedirect(
                                 sprintf(
-                                    __('%d nouveau(x) domaine(s) à importer depuis "%s" : %s — <a href="%s" class="btn btn-sm btn-warning ms-2">Importer maintenant</a>', 'dnsmanager'),
-                                    count($analysis['to_import']),
-                                    htmlspecialchars($account['account']['name'] ?? '#' . $id),
-                                    htmlspecialchars($names),
-                                    $importUrl
+                                    __('"%s" : %d domaine(s) à restaurer, %d absent(s) chez l\'hébergeur (à supprimer) — <a href="%s" class="btn btn-sm btn-warning ms-2">Ouvrir l\'import</a>', 'dnsmanager'),
+                                    $accountName, count($analysis['to_restore']), count($analysis['to_delete']), $importUrl
                                 ),
-                                false,
-                                WARNING,
-                                true  // allow HTML
+                                false, WARNING, true
+                            );
+                        } elseif (!$found) {
+                            \Session::addMessageAfterRedirect(
+                                sprintf(__('"%s" : aucun nouveau domaine à importer, restaurer ou supprimer.', 'dnsmanager'), $accountName),
+                                false, INFO, true
                             );
                         }
+                        $ok++;
                     } catch (\Exception $e) {
                         $ko++;
                         $messages[] = $e->getMessage();
@@ -551,6 +569,33 @@ class Account extends CommonDBTM
 
         // Périmètre actuel : OVH uniquement
         return ($row['provider_type'] ?? '') === 'ovh';
+    }
+
+    /**
+     * Ajoute le message "N nouveau(x) domaine(s) à importer" (avec lien vers l'import)
+     * si l'analyse en a trouvé. Retourne true si un message a été ajouté.
+     */
+    private static function notifyNewDomains(int $accountId, array $analysis): bool
+    {
+        if (empty($analysis['to_import'])) {
+            return false;
+        }
+        $names     = implode(', ', array_column(array_column($analysis['to_import'], 'domain_data'), 'name'));
+        $account   = self::getWithCredentials($accountId);
+        $importUrl = Plugin::getWebDir('dnsmanager') . '/front/domain.import.php?account_id=' . $accountId;
+        \Session::addMessageAfterRedirect(
+            sprintf(
+                __('%d nouveau(x) domaine(s) à importer depuis "%s" : %s — <a href="%s" class="btn btn-sm btn-warning ms-2">Importer maintenant</a>', 'dnsmanager'),
+                count($analysis['to_import']),
+                htmlspecialchars($account['account']['name'] ?? '#' . $accountId),
+                htmlspecialchars($names),
+                $importUrl
+            ),
+            false,
+            WARNING,
+            true  // allow HTML
+        );
+        return true;
     }
 
     /**
