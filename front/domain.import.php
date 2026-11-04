@@ -103,20 +103,18 @@ $domainImporter = new DomainImporter($accountId, true);
 $analysis       = $domainImporter->analyze();
 $entities       = DomainImporter::getImportableEntities();
 
-// Si rien à faire → lancer la sync directement et retourner à la fiche
+// Si rien à faire → retourner à la fiche avec un message. La recherche ne synchronise
+// PAS les enregistrements (c'est le rôle de "Sync rapide") : une version précédente
+// lançait ici, sans le dire, une synchronisation complète de tous les domaines.
 if (empty($analysis['to_import']) && empty($analysis['to_restore']) && empty($analysis['to_delete'])) {
-    try {
-        $importer = new Importer($accountId, false);
-        $result   = $importer->sync();
-        $msg = sprintf(
-            __('Synchronisation terminée : %d domaine(s), %d enregistrement(s).', 'dnsmanager'),
-            $result['updated'] ?? 0,
-            ($result['records_added'] ?? 0) + ($result['records_updated'] ?? 0)
-        );
-        Session::addMessageAfterRedirect($msg, true, INFO);
-    } catch (\Exception $e) {
-        Session::addMessageAfterRedirect($e->getMessage(), true, ERROR);
-    }
+    Session::addMessageAfterRedirect(
+        sprintf(
+            __("Recherche terminée : aucun nouveau domaine à importer, à restaurer ni à supprimer (%d domaine(s) déjà dans GLPI). Utilisez « Sync rapide » pour mettre à jour les enregistrements.", 'dnsmanager'),
+            count($analysis['to_sync'])
+        ),
+        true,
+        INFO
+    );
     Html::redirect(Plugin::getWebDir('dnsmanager') . '/front/account.form.php?id=' . $accountId);
     exit;
 }

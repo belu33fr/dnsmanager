@@ -10,6 +10,7 @@
         existingCredentials: {{ credentials|raw }},
         currentEndpoint:     '{{ currentEndpoint }}',
         accountId:           {{ item.fields['id'] ?? 0 }},
+        providerStatAge:     {{ (stats and stats.provider_age is not null) ? stats.provider_age : 'null' }},
         i18n: {
             chooseEndpoint: {{ __("-- Choisir un endpoint --", "dnsmanager")|json_encode|raw }},
             noCredentials:  {{ __("Aucun credential requis.", "dnsmanager")|json_encode|raw }},
@@ -34,7 +35,9 @@
             tabDoneErr:     {{ __("Synchronisation terminée avec erreurs", "dnsmanager")|json_encode|raw }},
             cancel:         {{ __("Annuler", "dnsmanager")|json_encode|raw }},
             syncCancelling: {{ __("Annulation en cours (fin du domaine en cours)...", "dnsmanager")|json_encode|raw }},
-            syncCancelled:  {{ __("Synchronisation annulée : {done} / {total} domaine(s) traité(s).", "dnsmanager")|json_encode|raw }}
+            syncCancelled:  {{ __("Synchronisation annulée : {done} / {total} domaine(s) traité(s).", "dnsmanager")|json_encode|raw }},
+            searchRunning:  {{ __("Recherche des nouveaux domaines chez l'hébergeur...", "dnsmanager")|json_encode|raw }},
+            tabSearch:      {{ __("Recherche de domaines", "dnsmanager")|json_encode|raw }}
         }
     };
     </script>
@@ -179,15 +182,16 @@
                 <tr>
                     <td class="text-muted pe-4">{{ __("Domaines chez l'hébergeur", 'dnsmanager') }}</td>
                     <td>
-                        <strong id="dns-stat-provider">—</strong>
+                        <strong id="dns-stat-provider">{{ stats.provider_domains is not null ? stats.provider_domains : '—' }}</strong>
                         <button type="button" id="dns-btn-stats" class="btn btn-sm btn-outline-secondary ms-2">
                             <i class="ti ti-refresh me-1"></i>{{ __('Actualiser', 'dnsmanager') }}
                         </button>
+                        <span class="text-muted small ms-2" id="dns-stat-checked">{{ stats.provider_checked }}</span>
                     </td>
                 </tr>
                 <tr>
                     <td class="text-muted pe-4">{{ __("Domaines de l'hébergeur non rattachés à GLPI", 'dnsmanager') }}</td>
-                    <td><strong id="dns-stat-notlinked">—</strong></td>
+                    <td><strong id="dns-stat-notlinked">{{ stats.provider_not_linked is not null ? stats.provider_not_linked : '—' }}</strong></td>
                 </tr>
                 <tr>
                     <td class="text-muted pe-4">{{ __('Dernière synchronisation des enregistrements', 'dnsmanager') }}</td>

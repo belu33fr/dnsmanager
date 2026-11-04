@@ -46,7 +46,7 @@ window.dnsmanagerFixHelp = function () {
 window.dnsmanagerTab = (function () {
     var FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
     var labels = { sync: '', done: '', doneErr: '' };
-    var origTitle = null, origIcons = null, createdLink = null, timer = null, frame = 0, pct = 0;
+    var origTitle = null, origIcons = null, createdLink = null, timer = null, frame = 0, pct = 0, indet = false;
 
     function draw(value, mode) {
         var c = document.createElement('canvas');
@@ -64,6 +64,10 @@ window.dnsmanagerTab = (function () {
             if (mode === 'done') { x.moveTo(20, 33); x.lineTo(29, 42); x.lineTo(45, 23); }
             else                 { x.moveTo(32, 20); x.lineTo(32, 36); x.moveTo(32, 44); x.lineTo(32, 45); }
             x.stroke();
+        } else if (mode === 'spin') {
+            x.strokeStyle = '#206bc4';
+            var a0 = value * Math.PI / 5;
+            x.beginPath(); x.arc(32, 32, 24, a0, a0 + Math.PI / 2); x.stroke();
         } else if (value > 0) {
             x.strokeStyle = '#206bc4';
             x.beginPath(); x.arc(32, 32, 24, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * value / 100); x.stroke();
@@ -95,15 +99,21 @@ window.dnsmanagerTab = (function () {
         if (createdLink) { createdLink.remove(); createdLink = null; }
         origTitle = null; origIcons = null;
     }
-    function render() { document.title = FRAMES[frame % FRAMES.length] + ' ' + pct + ' % — ' + labels.sync; }
+    function render() {
+        document.title = FRAMES[frame % FRAMES.length] + ' ' + (indet ? '' : pct + ' % — ') + labels.sync;
+    }
 
     return {
         labels: labels,
-        start: function () {
+        start: function (indeterminate) {
             restore();
+            indet = !!indeterminate;
             origTitle = document.title; pct = 0; frame = 0;
-            render(); setIcon(draw(0, 'run'));
-            timer = setInterval(function () { frame++; render(); }, 250);
+            render(); setIcon(draw(indet ? 0 : 0, indet ? 'spin' : 'run'));
+            timer = setInterval(function () {
+                frame++; render();
+                if (indet) setIcon(draw(frame, 'spin'));
+            }, 250);
         },
         update: function (value) { pct = value; render(); setIcon(draw(value, 'run')); },
         finish: function (mode) {
@@ -426,7 +436,8 @@ window.initDnsManagerForm = function initDnsManagerForm() {
                     action: 'sync_log', account_id: accountId, duration: Math.round(elapsed / 1000),
                     domains: okCount, records_added: added, records_updated: updated,
                     errors: errors.join('\n'), cancelled: cancelled ? 1 : 0,
-                }).then(refreshStats, refreshStats);
+                }).then(function () { refreshStats(); refreshProviderStats(); },
+                         function () { refreshStats(); refreshProviderStats(); });
             }
 
             function next() {
@@ -487,26 +498,51 @@ window.initDnsManagerForm = function initDnsManagerForm() {
     // Statistiques : comptage chez l'hébergeur (à la demande)
     // -----------------------------------------------------------------------
     var btnStats = document.getElementById('dns-btn-stats');
+    function refreshProviderStats() {
+        var slot = document.getElementById('dns-stat-provider');
+        var nl   = document.getElementById('dns-stat-notlinked');
+        var chk  = document.getElementById('dns-stat-checked');
+        if (!btnStats || !slot) return;
+        btnStats.disabled = true;
+        slot.innerHTML = SPINNER + esc(t('statsRunning'));
+        fetchJson({ action: 'account_stats', account_id: accountId })
+            .then(function (d) {
+                btnStats.disabled = false;
+                if (d.success) {
+                    slot.textContent = d.provider_count;
+                    if (nl)  nl.textContent  = d.not_linked;
+                    if (chk) chk.textContent = d.checked || '';
+                } else {
+                    slot.innerHTML = '<span class="text-danger">' + esc(d.message) + '</span>';
+                }
+            })
+            .catch(function (e) {
+                btnStats.disabled = false;
+                slot.innerHTML = '<span class="text-danger">' + esc(commErr(e)) + '</span>';
+            });
+    }
     if (btnStats) {
-        btnStats.addEventListener('click', function () {
-            var slot = document.getElementById('dns-stat-provider');
-            var nl   = document.getElementById('dns-stat-notlinked');
-            btnStats.disabled = true;
-            slot.innerHTML = SPINNER + esc(t('statsRunning'));
-            fetchJson({ action: 'account_stats', account_id: accountId })
-                .then(function (d) {
-                    btnStats.disabled = false;
-                    if (d.success) {
-                        slot.textContent = d.provider_count;
-                        if (nl) nl.textContent = d.not_linked;
-                    } else {
-                        slot.innerHTML = '<span class="text-danger">' + esc(d.message) + '</span>';
-                    }
-                })
-                .catch(function (e) {
-                    btnStats.disabled = false;
-                    slot.innerHTML = '<span class="text-danger">' + esc(commErr(e)) + '</span>';
-                });
+        btnStats.addEventListener('click', refreshProviderStats);
+        // Chiffres jamais vérifiés ou anciens (> 10 min) : un appel léger à l'ouverture de la fiche
+        if (data.providerStatAge === null || data.providerStatAge === undefined || data.providerStatAge > 600) {
+            refreshProviderStats();
+        }
+    }
+
+    // Recherche de nouveaux domaines : navigation vers la page d'import, qui interroge
+    // l'hébergeur avant de s'afficher. On montre tout de suite que ça travaille (la durée
+    // dépend d'un seul appel API : pas de pourcentage réel à afficher).
+    var linkSearch = document.getElementById('dns-btn-sync-interactive');
+    if (linkSearch) {
+        linkSearch.addEventListener('click', function () {
+            result.innerHTML =
+                '<div class="border rounded p-3">'
+                + '<div class="d-flex align-items-center mb-2">' + SPINNER + '<span>' + esc(t('searchRunning')) + '</span></div>'
+                + '<div class="progress" style="height:1rem;border:1px solid var(--tblr-border-color, #adb5bd);background:var(--tblr-bg-surface-secondary, #f1f3f5)">'
+                + '<div class="progress-bar bg-primary progress-bar-striped progress-bar-animated" role="progressbar" style="width:100%"></div></div>'
+                + '</div>';
+            tab.labels.sync = t('tabSearch');
+            tab.start(true);
         });
     }
 };

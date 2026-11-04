@@ -256,7 +256,19 @@ try {
             foreach ($refs as $ref) {
                 if (!isset($mapped[(string)$ref])) $notLinked++;
             }
-            echo json_encode(['success' => true, 'provider_count' => count($refs), 'not_linked' => $notLinked]);
+            // Mémoriser pour l'affichage (évite "—" à chaque ouverture de la fiche)
+            $DB->update(Account::getTable(), [
+                'stat_provider_domains'    => count($refs),
+                'stat_provider_not_linked' => $notLinked,
+                'stat_provider_checked_at' => date('Y-m-d H:i:s'),
+            ], ['id' => $accountId]);
+            $fresh = Account::getStats($accountId);
+            echo json_encode([
+                'success'        => true,
+                'provider_count' => count($refs),
+                'not_linked'     => $notLinked,
+                'checked'        => $fresh['provider_checked'],
+            ]);
             break;
 
         default:

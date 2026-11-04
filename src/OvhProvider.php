@@ -162,20 +162,14 @@ class OvhProvider implements ProviderInterface
 
     public function listDomains(): array
     {
+        // Un seul appel : la liste des zones. (Une version précédente lisait chaque zone
+        // pour en tirer un commentaire que rien n'utilisait : un appel de plus par domaine,
+        // à chaque analyse et à chaque synchronisation complète.)
         $zones = $this->get('/domain/zone');
         if (!is_array($zones)) return [];
         $domains = [];
         foreach ($zones as $zone) {
-            try {
-                $info = $this->get('/domain/zone/' . urlencode((string)$zone));
-                $domains[] = [
-                    'ref'     => (string)$zone,
-                    'name'    => (string)$zone,
-                    'comment' => isset($info['lastUpdate']) ? 'Dernière MAJ OVH : ' . $info['lastUpdate'] : '',
-                ];
-            } catch (\Exception) {
-                $domains[] = ['ref' => (string)$zone, 'name' => (string)$zone, 'comment' => ''];
-            }
+            $domains[] = ['ref' => (string)$zone, 'name' => (string)$zone, 'comment' => ''];
         }
         return $domains;
     }

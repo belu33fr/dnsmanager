@@ -477,3 +477,15 @@ msgstr ""
 
 msgid "partielle"
 msgstr ""
+
+msgid "Recherche de domaines"
+msgstr ""
+
+msgid "Recherche des nouveaux domaines chez l'hébergeur..."
+msgstr ""
+
+msgid "Recherche terminée : aucun nouveau domaine à importer, à restaurer ni à supprimer (%d domaine(s) déjà dans GLPI). Utilisez « Sync rapide » pour mettre à jour les enregistrements."
+msgstr ""
+
+msgid "vérifié le %s"
+msgstr ""

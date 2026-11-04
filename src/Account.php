@@ -594,7 +594,15 @@ class Account extends CommonDBTM
                 } . ')';
         }
 
+        // Dernier comptage chez l'hébergeur (mémorisé par l'action account_stats)
+        $acc = $DB->request(['FROM' => self::getTable(), 'WHERE' => ['id' => $accountId]])->current();
+        $checkedAt = $acc['stat_provider_checked_at'] ?? null;
+
         return [
+            'provider_domains'    => isset($acc['stat_provider_domains'])    ? (int)$acc['stat_provider_domains']    : null,
+            'provider_not_linked' => isset($acc['stat_provider_not_linked']) ? (int)$acc['stat_provider_not_linked'] : null,
+            'provider_checked'    => $checkedAt ? sprintf(__('vérifié le %s', 'dnsmanager'), \Html::convDateTime($checkedAt)) : '',
+            'provider_age'        => $checkedAt ? max(0, time() - strtotime($checkedAt)) : null,
             'glpi_domains'      => (int)($cnt['cpt'] ?? 0),
             'last_records_sync' => ($lastDomain && !empty($lastDomain['last_sync_at'])) ? \Html::convDateTime($lastDomain['last_sync_at']) : '',
             'last_log'          => $logText,

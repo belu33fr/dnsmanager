@@ -478,3 +478,15 @@ msgstr "Synchronisation cancelled: {done} / {total} domain(s) processed."
 
 msgid "partielle"
 msgstr "partial"
+
+msgid "Recherche de domaines"
+msgstr "Domain search"
+
+msgid "Recherche des nouveaux domaines chez l'hébergeur..."
+msgstr "Searching the provider for new domains..."
+
+msgid "Recherche terminée : aucun nouveau domaine à importer, à restaurer ni à supprimer (%d domaine(s) déjà dans GLPI). Utilisez « Sync rapide » pour mettre à jour les enregistrements."
+msgstr "Search complete: no new domain to import, restore or delete (%d domain(s) already in GLPI). Use \"Quick sync\" to update the records."
+
+msgid "vérifié le %s"
+msgstr "checked on %s"

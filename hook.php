@@ -265,6 +265,9 @@ function plugin_dnsmanager_migrate(): void
         'contact_groups_id'                               => "ALTER TABLE `$accountTable` ADD COLUMN `contact_groups_id` INT(10) UNSIGNED NOT NULL DEFAULT 0",
         'allow_bidirectional_sync'                        => "ALTER TABLE `$accountTable` ADD COLUMN `allow_bidirectional_sync` TINYINT(1) NOT NULL DEFAULT 0",
         'provider_key_name'                               => "ALTER TABLE `$accountTable` ADD COLUMN `provider_key_name` VARCHAR(255) NOT NULL DEFAULT ''",
+        'stat_provider_domains'                           => "ALTER TABLE `$accountTable` ADD COLUMN `stat_provider_domains` INT(10) UNSIGNED NULL DEFAULT NULL",
+        'stat_provider_not_linked'                        => "ALTER TABLE `$accountTable` ADD COLUMN `stat_provider_not_linked` INT(10) UNSIGNED NULL DEFAULT NULL",
+        'stat_provider_checked_at'                        => "ALTER TABLE `$accountTable` ADD COLUMN `stat_provider_checked_at` DATETIME NULL DEFAULT NULL",
     ];
 
     foreach ($cols as $col => $sql) {
