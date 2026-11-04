@@ -204,6 +204,7 @@ try {
                 'records_added'   => (int)($result['records_added']   ?? 0),
                 'records_updated' => (int)($result['records_updated'] ?? 0),
                 'errors'          => array_values($result['errors'] ?? []),
+                'changes'         => array_values($result['changes'] ?? []),
                 'duration_ms'     => (int)round((microtime(true) - $t0) * 1000),
                 'api_calls'       => $metrics['calls'],
                 'api_ms'          => $metrics['ms'],

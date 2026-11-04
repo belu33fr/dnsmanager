@@ -382,7 +382,7 @@ window.initDnsManagerForm = function initDnsManagerForm() {
             btnSync.disabled = true;
 
             var domains = [], index = 0, okCount = 0, added = 0, updated = 0, errors = [], fails = 0;
-            var t0 = Date.now(), apiMs = 0, apiCalls = 0, timings = [];
+            var t0 = Date.now(), apiMs = 0, apiCalls = 0, timings = [], changes = [];
             cancelRequested = false;
             tab.start();
 
@@ -416,6 +416,12 @@ window.initDnsManagerForm = function initDnsManagerForm() {
                 if (cancelled) html += ' ' + esc(fmt(t('syncSummary'), { domains: okCount, added: added, updated: updated }));
                 if (aborted) html += '<br>' + esc(t('syncAborted'));
                 if (errors.length) html += '<br>' + esc(t('syncErrors')) + '<br>' + errors.map(esc).join('<br>');
+
+                // Détail des enregistrements créés / modifiés (permet de repérer ceux qui changent à chaque passage)
+                if (changes.length) {
+                    html += '<div class="small mt-2"><strong>' + esc(t('syncChanges')) + '</strong><br>'
+                        + changes.slice(0, 15).map(esc).join('<br>') + (changes.length > 15 ? '<br>…' : '') + '</div>';
+                }
 
                 // Chiffres de performance (diagnostic des lenteurs)
                 var share = elapsed ? Math.round(apiMs / elapsed * 100) : 0;
@@ -456,6 +462,7 @@ window.initDnsManagerForm = function initDnsManagerForm() {
                             apiCalls += d.api_calls || 0;
                             timings.push({ ref: ref, ms: d.duration_ms || 0, calls: d.api_calls || 0 });
                             (d.errors || []).forEach(function (e) { errors.push(ref + ' : ' + e); });
+                            (d.changes || []).forEach(function (c) { changes.push(ref + ' — ' + c); });
                         } else {
                             errors.push(ref + ' : ' + d.message);
                         }

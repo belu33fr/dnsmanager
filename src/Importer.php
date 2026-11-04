@@ -16,6 +16,8 @@ class Importer
     private int   $recordsAdded    = 0;
     private int   $recordsUpdated  = 0;
     private array $errors          = [];
+    private array $changes         = [];
+    private string $lastChangeDetail = '';
     private array $skippedDomains  = [];
     private ?int  $internetTypeId  = null;
 
@@ -72,6 +74,7 @@ class Importer
         $this->recordsAdded   = 0;
         $this->recordsUpdated = 0;
         $this->errors         = [];
+        $this->changes        = [];
 
         // Récupérer le mapping
         $mapping = $DB->request([
@@ -119,6 +122,7 @@ class Importer
             'records_added'   => $this->recordsAdded,
             'records_updated' => $this->recordsUpdated,
             'errors'          => $this->errors,
+            'changes'         => $this->changes,
         ];
     }
 
@@ -647,7 +651,10 @@ class Importer
                     ['last_sync_at' => date('Y-m-d H:i:s'), 'sync_status' => $status],
                     ['id' => $existing['id']]
                 );
-                if ($changed) $this->recordsUpdated++;
+                if ($changed) {
+                    $this->recordsUpdated++;
+                    $this->noteChange(__('modifié', 'dnsmanager'), $recordData, $this->lastChangeDetail);
+                }
                 return;
             }
 
@@ -667,6 +674,7 @@ class Importer
                     ['id' => $existing['id']]
                 );
                 $this->recordsUpdated++;
+                $this->noteChange(__('restauré', 'dnsmanager'), $recordData);
                 return;
             }
 
@@ -705,6 +713,7 @@ class Importer
                 'sync_status'      => 'created_from_provider',
             ]);
             $this->recordsAdded++;
+            $this->noteChange(__('rattaché', 'dnsmanager'), $recordData);
             return;
         }
 
@@ -734,6 +743,7 @@ class Importer
                 'sync_status'      => 'updated_from_provider',
             ]);
             $this->recordsUpdated++;
+            $this->noteChange(__('rattaché', 'dnsmanager'), $recordData);
             return;
         }
 
@@ -776,6 +786,7 @@ class Importer
             ]);
             error_log("DNSManage INSERT mapping OK: insertId=" . $DB->insertId());
             $this->recordsAdded++;
+            $this->noteChange(__('créé', 'dnsmanager'), $recordData);
         } catch (\Exception $e) {
             error_log("DNSManage INSERT mapping FAILED: domain=$glpiDomainId ref=$providerRef glpiId=$id err=" . $e->getMessage());
             $this->errors[] = "Mapping record $providerRef : " . $e->getMessage();
@@ -795,10 +806,15 @@ class Importer
         $newTtl    = (int)($recordData['ttl'] ?? 0);
         $newData   = $recordData['target'];
 
+        // Différences détectées (type, TTL, valeur)
+        $short = static fn($v): string => mb_strlen((string)$v) > 60 ? mb_substr((string)$v, 0, 60) . '…' : (string)$v;
+        $diffs = [];
+        if ((int)$current['domainrecordtypes_id'] !== $newTypeId) $diffs[] = 'type: ' . (int)$current['domainrecordtypes_id'] . ' → ' . $newTypeId;
+        if ((int)$current['ttl'] !== $newTtl)                      $diffs[] = 'ttl: ' . (int)$current['ttl'] . ' → ' . $newTtl;
+        if ($current['data'] !== $newData)                         $diffs[] = 'data: «' . $short($current['data']) . '» → «' . $short($newData) . '»';
+
         // Pas de changement → rien à faire
-        if ((int)$current['domainrecordtypes_id'] === $newTypeId
-            && (int)$current['ttl'] === $newTtl
-            && $current['data'] === $newData) {
+        if (empty($diffs)) {
             return false;
         }
 
@@ -809,7 +825,36 @@ class Importer
             'ttl'                 => $newTtl,
             'data'                => $newData,
         ]);
+
+        // Vérifier que la modification a réellement été enregistrée. GLPI peut la refuser
+        // (droits du profil sur les types d'enregistrement, validation) ou l'altérer. Sans
+        // cette vérification, la même différence réapparaît à chaque synchronisation et
+        // l'enregistrement est compté "modifié" à chaque passage.
+        $after = $DB->request(['FROM' => 'glpi_domainrecords', 'WHERE' => ['id' => $glpiRecordId]])->current();
+        if (!$after
+            || (int)$after['domainrecordtypes_id'] !== $newTypeId
+            || (int)$after['ttl'] !== $newTtl
+            || $after['data'] !== $newData) {
+            $this->errors[] = sprintf(
+                '%s %s : modification refusée ou altérée par GLPI (%s)',
+                $current['name'] ?? '#' . $glpiRecordId, $recordData['type'] ?? '', implode('; ', $diffs)
+            );
+            $this->lastChangeDetail = '';
+            return false;
+        }
+
+        $this->lastChangeDetail = implode('; ', $diffs);
         return true;
+    }
+
+    /** Garde la trace d'un changement (affiché dans le résumé de la synchro rapide) */
+    private function noteChange(string $kind, array $recordData, string $detail = ''): void
+    {
+        if (count($this->changes) >= 50) return;
+        $this->changes[] = sprintf(
+            '%s : %s %s%s',
+            $kind, $recordData['name'] ?? '?', $recordData['type'] ?? '?', $detail !== '' ? ' (' . $detail . ')' : ''
+        );
     }
 
     private function resolveRecordType(string $type): int

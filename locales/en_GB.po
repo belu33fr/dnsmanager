@@ -502,3 +502,12 @@ msgstr "Start search"
 
 msgid "{domains} domaine(s) synchronisé(s) — {added} enregistrement(s) créé(s), {updated} modifié(s)."
 msgstr "{domains} domain(s) synchronised — {added} record(s) created, {updated} modified."
+
+msgid "Détail des enregistrements créés ou modifiés :"
+msgstr "Details of the records created or modified:"
+
+msgid "créé"
+msgstr "created"
+
+msgid "rattaché"
+msgstr "linked"
