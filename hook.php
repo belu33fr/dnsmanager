@@ -290,7 +290,7 @@ function plugin_dnsmanager_MassiveActions(string $type): array
         $class = \GlpiPlugin\Dnsmanager\Account::class;
         $actions[$class . $sep . 'change_supplier']  = __('Modifier le fournisseur', 'dnsmanager');
         $actions[$class . $sep . 'change_whitelist'] = __('Modifier la liste blanche', 'dnsmanager');
-        $actions[$class . $sep . 'change_renewal']   = __('Modifier le délai de renouvellement', 'dnsmanager');
+        $actions[$class . $sep . 'change_renewal']   = __('Modifier le préavis de facturation (mois)', 'dnsmanager');
         $actions[$class . $sep . 'sync']             = __('Synchroniser maintenant', 'dnsmanager');
         $actions[$class . $sep . 'search_domains']   = __('Rechercher nouveaux domaines', 'dnsmanager');
     }

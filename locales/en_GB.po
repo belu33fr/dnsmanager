@@ -511,3 +511,6 @@ msgstr "created"
 
 msgid "rattaché"
 msgstr "linked"
+
+msgid "Modifier le préavis de facturation (mois)"
+msgstr "Change the billing notice (months)"

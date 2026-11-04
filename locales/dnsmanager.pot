@@ -510,3 +510,6 @@ msgstr ""
 
 msgid "rattaché"
 msgstr ""
+
+msgid "Modifier le préavis de facturation (mois)"
+msgstr ""

@@ -229,7 +229,7 @@ class Account extends CommonDBTM
             'id'            => 13,
             'table'         => self::getTable(),
             'field'         => 'renewal_months',
-            'name'          => __('Délai renouvellement (mois)', 'dnsmanager'),
+            'name'          => __('Préavis de facturation (mois)', 'dnsmanager'),
             'datatype'      => 'number',
             'massiveaction' => true,
         ];
@@ -306,7 +306,7 @@ class Account extends CommonDBTM
         $sep = MassiveAction::CLASS_ACTION_SEPARATOR;
         $actions[self::class . $sep . 'change_supplier']  = __('Modifier le fournisseur', 'dnsmanager');
         $actions[self::class . $sep . 'change_whitelist'] = __('Modifier la liste blanche', 'dnsmanager');
-        $actions[self::class . $sep . 'change_renewal']   = __('Modifier le délai de renouvellement', 'dnsmanager');
+        $actions[self::class . $sep . 'change_renewal']   = __('Modifier le préavis de facturation (mois)', 'dnsmanager');
         $actions[self::class . $sep . 'sync']             = __('Synchroniser maintenant', 'dnsmanager');
         $actions[self::class . $sep . 'search_domains']   = __('Rechercher nouveaux domaines', 'dnsmanager');
 
@@ -353,7 +353,7 @@ class Account extends CommonDBTM
         // On accède directement à $ma->results via Reflection sur la propriété results
         $action = $ma->getAction();
 
-        $handledActions = ['change_supplier', 'change_whitelist', 'change_renewal', 'sync'];
+        $handledActions = ['change_supplier', 'change_whitelist', 'change_renewal', 'sync', 'search_domains'];
         if (!in_array($action, $handledActions, true)) {
             parent::processMassiveActionsForOneItemtype($ma, $item, $ids);
             return;
