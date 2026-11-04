@@ -1,0 +1,230 @@
+{#
+ # Fenêtre de l'action de masse "Synchroniser maintenant".
+ # La synchro s'exécute depuis cette fenêtre, compte par compte puis domaine par domaine
+ # (une requête courte par domaine) : le bouton Annuler et la fermeture de la fenêtre
+ # l'arrêtent après le domaine en cours.
+ #}
+<div id="dns-mass-sync"
+     data-url="{{ webdir }}/ajax/sync.php"
+     data-import-url="{{ webdir }}/front/domain.import.php"
+     data-accounts="{{ accounts|json_encode|e('html_attr') }}">
+
+    <div class="alert alert-info">
+        <i class="ti ti-info-circle me-2"></i>{{ __("Cette synchronisation s'exécute depuis cette fenêtre, compte par compte puis domaine par domaine. « Annuler » ou la fermeture de la fenêtre l'arrête après le domaine en cours : les domaines déjà synchronisés restent à jour.", 'dnsmanager') }}
+    </div>
+
+    <p class="mb-2">
+        <strong>{{ __('Comptes sélectionnés :', 'dnsmanager') }}</strong>
+        {% for a in accounts %}{{ a.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+    </p>
+
+    <div id="dns-mass-result" class="mb-3"></div>
+
+    <div class="d-flex gap-2">
+        <button type="button" id="dns-mass-start" class="btn btn-primary">
+            <i class="ti ti-refresh me-1"></i>{{ __('Lancer la synchronisation', 'dnsmanager') }}
+        </button>
+        <button type="button" id="dns-mass-cancel" class="btn btn-primary" style="display:none">
+            <i class="ti ti-x me-1"></i>{{ __('Annuler', 'dnsmanager') }}
+        </button>
+    </div>
+</div>
+
+<script>
+window.dnsmanagerMassI18n = {
+    cancelling:   {{ __("Annulation en cours (fin du domaine en cours)...", "dnsmanager")|json_encode|raw }},
+    progress:     {{ __("Synchronisation : {done} / {total} — {label}", "dnsmanager")|json_encode|raw }},
+    listing:      {{ __("Recherche des domaines à synchroniser...", "dnsmanager")|json_encode|raw }},
+    nothing:      {{ __("Aucun domaine à synchroniser pour les comptes sélectionnés.", "dnsmanager")|json_encode|raw }},
+    done:         {{ __("Terminé.", "dnsmanager")|json_encode|raw }},
+    cancelled:    {{ __("Synchronisation annulée : {done} / {total} domaine(s) traité(s).", "dnsmanager")|json_encode|raw }},
+    account:      {{ __("{name} : {domains} domaine(s) synchronisé(s) — {added} enregistrement(s) créé(s), {updated} modifié(s).", "dnsmanager")|json_encode|raw }},
+    errors:       {{ __("Erreurs :", "dnsmanager")|json_encode|raw }},
+    commError:    {{ __("Erreur de communication.", "dnsmanager")|json_encode|raw }},
+    newDomains:   {{ __("{n} nouveau(x) domaine(s) à importer : {names}", "dnsmanager")|json_encode|raw }},
+    importNow:    {{ __("Importer maintenant", "dnsmanager")|json_encode|raw }},
+    titleSync:    {{ __("Synchronisation", "dnsmanager")|json_encode|raw }}
+};
+</script>
+<script>
+{% verbatim %}
+(function () {
+    var root = document.getElementById('dns-mass-sync');
+    if (!root || root.dataset.dnsInit === '1') return;
+    root.dataset.dnsInit = '1';
+
+    var T         = window.dnsmanagerMassI18n || {};
+    var accounts  = JSON.parse(root.getAttribute('data-accounts') || '[]');
+    var syncUrl   = root.getAttribute('data-url');
+    var importUrl = root.getAttribute('data-import-url');
+    var box       = document.getElementById('dns-mass-result');
+    var btnStart  = document.getElementById('dns-mass-start');
+    var btnCancel = document.getElementById('dns-mass-cancel');
+    var SPINNER   = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>';
+    var FRAMES    = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+
+    var running = false, cancelRequested = false;
+    var origTitle = null, frame = 0, titleTimer = null, lastPct = 0;
+
+    function t(k) { return T[k] !== undefined ? T[k] : k; }
+    function fmt(s, v) { return String(s).replace(/\{(\w+)\}/g, function (m, k) { return v[k] !== undefined ? v[k] : m; }); }
+    function esc(s) {
+        return String(s === undefined || s === null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function csrf() {
+        var m = document.querySelector('meta[property="glpi:csrf_token"]');
+        return m ? m.content : '';
+    }
+    function fetchJson(params) {
+        return fetch(syncUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Glpi-Csrf-Token': csrf(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: new URLSearchParams(params).toString()
+        }).then(function (r) {
+            return r.text().then(function (txt) {
+                try { return JSON.parse(txt); }
+                catch (e) { throw new Error('HTTP ' + r.status); }
+            });
+        });
+    }
+    function errMsg(e) { return t('commError') + (e && e.message ? ' (' + e.message + ')' : ''); }
+
+    // Fenêtre fermée (ou retirée de la page) = annulation
+    function gone() { return !document.body.contains(root); }
+    var modal = root.closest ? root.closest('.modal') : null;
+    if (modal) modal.addEventListener('hidden.bs.modal', function () { if (running) cancelRequested = true; });
+    window.addEventListener('beforeunload', function (e) { if (running) { e.preventDefault(); e.returnValue = ''; } });
+
+    function titleOn() {
+        origTitle = document.title; frame = 0;
+        titleTimer = setInterval(function () {
+            frame++; document.title = FRAMES[frame % FRAMES.length] + ' ' + lastPct + ' % — ' + t('titleSync');
+        }, 250);
+    }
+    function titleOff() {
+        if (titleTimer) { clearInterval(titleTimer); titleTimer = null; }
+        if (origTitle !== null) { document.title = origTitle; origTitle = null; }
+    }
+
+    function showProgress(done, total, label) {
+        lastPct = total ? Math.round(done / total * 100) : 0;
+        box.innerHTML =
+            '<div class="border rounded p-3">'
+            + '<div class="d-flex align-items-center mb-2">' + SPINNER
+            + '<span id="dns-mass-msg" class="flex-grow-1">' + esc(fmt(t('progress'), { done: done, total: total, label: label })) + '</span>'
+            + '<strong class="ms-3">' + lastPct + ' %</strong></div>'
+            + '<div class="progress" style="height:1rem;border:1px solid var(--tblr-border-color, #adb5bd);background:var(--tblr-bg-surface-secondary, #f1f3f5)">'
+            + '<div class="progress-bar bg-primary" role="progressbar" style="width:' + lastPct + '%;transition:width .3s"></div></div></div>';
+    }
+
+    btnCancel.addEventListener('click', function () {
+        if (!running || cancelRequested) return;
+        cancelRequested = true;
+        btnCancel.disabled = true;
+        var msg = document.getElementById('dns-mass-msg');
+        if (msg) msg.textContent = t('cancelling');
+    });
+
+    async function run() {
+        running = true; cancelRequested = false;
+        btnStart.style.display = 'none'; btnCancel.style.display = ''; btnCancel.disabled = false;
+        titleOn();
+        box.innerHTML = '<div class="alert alert-info d-flex align-items-center">' + SPINNER + '<span>' + esc(t('listing')) + '</span></div>';
+
+        var plans = [], results = [], total = 0;
+
+        // 1) Domaines à synchroniser, compte par compte
+        for (var i = 0; i < accounts.length; i++) {
+            var acc = accounts[i];
+            try {
+                var d = await fetchJson({ action: 'get_sync_domains', account_id: acc.id, restrict_entities: 1 });
+                if (!d.success) throw new Error(d.message);
+                plans.push({ acc: acc, domains: d.domains || [] });
+                total += (d.domains || []).length;
+            } catch (e) {
+                results.push({ acc: acc, ok: 0, added: 0, updated: 0, errors: [acc.name + ' : ' + (e.message || errMsg(e))] });
+            }
+        }
+
+        // 2) Synchronisation, un domaine à la fois
+        var done = 0;
+        for (var p = 0; p < plans.length; p++) {
+            var plan = plans[p];
+            var res = { acc: plan.acc, ok: 0, added: 0, updated: 0, errors: [], cancelled: false };
+            var started = Date.now(), fails = 0;
+
+            for (var k = 0; k < plan.domains.length; k++) {
+                if (cancelRequested || gone()) { cancelRequested = true; res.cancelled = true; break; }
+                var ref = plan.domains[k];
+                showProgress(done, total, plan.acc.name + ' — ' + ref);
+                try {
+                    var r = await fetchJson({ action: 'sync_domain', account_id: plan.acc.id, domain_ref: ref });
+                    fails = 0;
+                    if (r.success) {
+                        res.ok++; res.added += r.records_added || 0; res.updated += r.records_updated || 0;
+                        (r.errors || []).forEach(function (m) { res.errors.push(ref + ' : ' + m); });
+                    } else {
+                        res.errors.push(ref + ' : ' + r.message);
+                    }
+                } catch (e) {
+                    res.errors.push(ref + ' : ' + errMsg(e));
+                    if (++fails >= 3) { done += plan.domains.length - k; break; }
+                }
+                done++;
+            }
+
+            // Journal de cette synchro (CRON et manuelles regroupés dans le même journal)
+            try {
+                await fetchJson({
+                    action: 'sync_log', account_id: plan.acc.id, duration: Math.round((Date.now() - started) / 1000),
+                    domains: res.ok, records_added: res.added, records_updated: res.updated,
+                    errors: res.errors.join('\n'), cancelled: res.cancelled ? 1 : 0
+                });
+            } catch (e) { /* le journal ne doit pas bloquer la suite */ }
+
+            results.push(res);
+            if (cancelRequested) break;
+        }
+
+        // 3) Nouveaux domaines à importer (comme l'ancienne action), sauf si annulé
+        if (!cancelRequested) {
+            for (var q = 0; q < results.length; q++) {
+                try {
+                    var n = await fetchJson({ action: 'account_new_domains', account_id: results[q].acc.id });
+                    if (n.success && n.to_import > 0) results[q].news = n;
+                } catch (e) { /* facultatif */ }
+            }
+        }
+
+        // Fin
+        running = false; titleOff();
+        btnCancel.style.display = 'none';
+        var html;
+        if (total === 0 && results.every(function (x) { return x.errors.length === 0; })) {
+            html = '<div class="alert alert-info">' + esc(t('nothing')) + '</div>';
+        } else {
+            var bad = cancelRequested || results.some(function (x) { return x.errors.length > 0; });
+            html = '<div class="alert ' + (bad ? 'alert-warning' : 'alert-success') + '"><strong>'
+                + esc(cancelRequested ? fmt(t('cancelled'), { done: done, total: total }) : t('done')) + '</strong>';
+            results.forEach(function (x) {
+                html += '<div class="mt-2">' + esc(fmt(t('account'), { name: x.acc.name, domains: x.ok, added: x.added, updated: x.updated })) + '</div>';
+                if (x.errors.length) html += '<div class="small">' + esc(t('errors')) + '<br>' + x.errors.map(esc).join('<br>') + '</div>';
+                if (x.news) {
+                    html += '<div class="mt-1">' + esc(fmt(t('newDomains'), { n: x.news.to_import, names: (x.news.names || []).join(', ') }))
+                        + ' <a class="btn btn-sm btn-warning ms-2" href="' + esc(importUrl + '?account_id=' + x.acc.id) + '">' + esc(t('importNow')) + '</a></div>';
+                }
+            });
+            html += '</div>';
+        }
+        box.innerHTML = html;
+    }
+
+    btnStart.addEventListener('click', function () { if (!running) run(); });
+})();
+{% endverbatim %}
+</script>

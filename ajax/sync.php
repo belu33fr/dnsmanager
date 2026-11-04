@@ -211,6 +211,21 @@ try {
             ]);
             break;
 
+        case 'account_new_domains':
+            // Résultat de l'analyse (nouveaux domaines, à restaurer, à supprimer) d'un compte
+            Session::checkRight('plugin_dnsmanager_sync', UPDATE);
+            if (!$accountId) throw new \InvalidArgumentException('ID de compte manquant.');
+            $analysis = (new DomainImporter($accountId, true))->analyze();
+            $names    = array_column(array_column($analysis['to_import'], 'domain_data'), 'name');
+            echo json_encode([
+                'success'    => true,
+                'to_import'  => count($analysis['to_import']),
+                'to_restore' => count($analysis['to_restore']),
+                'to_delete'  => count($analysis['to_delete']),
+                'names'      => array_slice($names, 0, 8),
+            ]);
+            break;
+
         case 'account_stats_local':
             if (!$accountId) throw new \InvalidArgumentException('ID de compte manquant.');
             echo json_encode(['success' => true] + Account::getStats($accountId));

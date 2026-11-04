@@ -332,8 +332,25 @@ class Account extends CommonDBTM
                 return true;
 
             case 'sync':
-                echo Html::submit(__('Lancer la synchronisation', 'dnsmanager'), ['name' => 'massiveaction']);
+                // Synchro pilotée depuis la fenêtre (domaine par domaine, annulable). Si la
+                // sélection est introuvable, on retombe sur l'ancien bouton (requête unique).
+                global $DB;
+                $items = method_exists($ma, 'getItems') ? $ma->getItems() : [];
+                $ids   = array_map('intval', array_keys($items[self::class] ?? []));
+                if (empty($ids)) {
+                    echo Html::submit(__('Lancer la synchronisation', 'dnsmanager'), ['name' => 'massiveaction']);
+                    return true;
+                }
+                $accounts = [];
+                foreach ($DB->request(['FROM' => self::getTable(), 'WHERE' => ['id' => $ids], 'ORDER' => 'name ASC']) as $row) {
+                    $accounts[] = ['id' => (int)$row['id'], 'name' => (string)$row['name']];
+                }
+                \Glpi\Application\View\TemplateRenderer::getInstance()->display('@dnsmanager/mass.sync.html.twig', [
+                    'accounts' => $accounts,
+                    'webdir'   => Plugin::getWebDir('dnsmanager'),
+                ]);
                 return true;
+
             case 'search_domains':
                 echo Html::submit(__('Lancer la recherche', 'dnsmanager'), ['name' => 'massiveaction']);
                 return true;

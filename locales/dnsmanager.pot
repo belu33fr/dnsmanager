@@ -513,3 +513,27 @@ msgstr ""
 
 msgid "Modifier le préavis de facturation (mois)"
 msgstr ""
+
+msgid "Aucun domaine à synchroniser pour les comptes sélectionnés."
+msgstr ""
+
+msgid "Cette synchronisation s'exécute depuis cette fenêtre, compte par compte puis domaine par domaine. « Annuler » ou la fermeture de la fenêtre l'arrête après le domaine en cours : les domaines déjà synchronisés restent à jour."
+msgstr ""
+
+msgid "Comptes sélectionnés :"
+msgstr ""
+
+msgid "Importer maintenant"
+msgstr ""
+
+msgid "Recherche des domaines à synchroniser..."
+msgstr ""
+
+msgid "Synchronisation : {done} / {total} — {label}"
+msgstr ""
+
+msgid "{name} : {domains} domaine(s) synchronisé(s) — {added} enregistrement(s) créé(s), {updated} modifié(s)."
+msgstr ""
+
+msgid "{n} nouveau(x) domaine(s) à importer : {names}"
+msgstr ""
