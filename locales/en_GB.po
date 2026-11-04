@@ -457,3 +457,15 @@ msgstr "{domains} domain(s), {records} record(s)."
 
 msgid "Échec :"
 msgstr "Failure:"
+
+msgid "Domaines les plus lents :"
+msgstr "Slowest domains:"
+
+msgid "Durée : {time} — moyenne {avg} par domaine — {api} % du temps en appels à l'hébergeur ({calls} appels)"
+msgstr "Duration: {time} — average {avg} per domain — {api}% of the time spent on provider calls ({calls} calls)"
+
+msgid "Synchronisation terminée"
+msgstr "Synchronisation finished"
+
+msgid "Synchronisation terminée avec erreurs"
+msgstr "Synchronisation finished with errors"

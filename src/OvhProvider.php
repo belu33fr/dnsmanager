@@ -311,7 +311,9 @@ class OvhProvider implements ProviderInterface
         ]);
         if ($body !== '') curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
 
+        $__t0 = microtime(true);
         $response  = curl_exec($ch);
+        ApiMetrics::record(microtime(true) - $__t0);
         $httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlError = curl_error($ch);
         curl_close($ch);
@@ -384,7 +386,9 @@ class OvhProvider implements ProviderInterface
             CURLOPT_TIMEOUT        => 10,
             CURLOPT_CONNECTTIMEOUT => 5,
         ]);
+        $__t0 = microtime(true);
         $response = curl_exec($ch);
+        ApiMetrics::record(microtime(true) - $__t0);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
         return ($response && $httpCode >= 200 && $httpCode < 300) ? $response : null;

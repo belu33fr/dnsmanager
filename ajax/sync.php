@@ -5,6 +5,8 @@ use GlpiPlugin\Dnsmanager\Credential;
 use GlpiPlugin\Dnsmanager\Importer;
 use GlpiPlugin\Dnsmanager\DomainImporter;
 use GlpiPlugin\Dnsmanager\ProviderFactory;
+use GlpiPlugin\Dnsmanager\ApiMetrics;
+use GlpiPlugin\Dnsmanager\Synclog;
 
 include('../../../inc/includes.php');
 set_time_limit(120); // 2 minutes max par requête
@@ -192,15 +194,46 @@ try {
                 echo json_encode(['success' => false, 'message' => 'Paramètres manquants']);
                 break;
             }
+            $t0       = microtime(true);
             $importer = new Importer($accountId, false);
             $result   = $importer->syncDomainByRef($domainRef);
+            $metrics  = ApiMetrics::snapshot();
             echo json_encode([
                 'success'         => true,
                 'message'         => ($result['records_added'] ?? 0) . ' créé(s), ' . ($result['records_updated'] ?? 0) . ' mis à jour.',
                 'records_added'   => (int)($result['records_added']   ?? 0),
                 'records_updated' => (int)($result['records_updated'] ?? 0),
                 'errors'          => array_values($result['errors'] ?? []),
+                'duration_ms'     => (int)round((microtime(true) - $t0) * 1000),
+                'api_calls'       => $metrics['calls'],
+                'api_ms'          => $metrics['ms'],
             ]);
+            break;
+
+        case 'account_stats_local':
+            if (!$accountId) throw new \InvalidArgumentException('ID de compte manquant.');
+            echo json_encode(['success' => true] + Account::getStats($accountId));
+            break;
+
+        case 'sync_log':
+            // Journal d'une synchro rapide (pilotée par le navigateur, domaine par domaine)
+            Session::checkRight('plugin_dnsmanager_sync', UPDATE);
+            if (!$accountId) throw new \InvalidArgumentException('ID de compte manquant.');
+            $duration = max(0, min(86400, (int)($_POST['duration'] ?? 0)));
+            $errors   = trim((string)($_POST['errors'] ?? ''));
+            $finished = time();
+            $DB->insert(Synclog::getTable(), [
+                'accounts_id'     => $accountId,
+                'started_at'      => date('Y-m-d H:i:s', $finished - $duration),
+                'finished_at'     => date('Y-m-d H:i:s', $finished),
+                'status'          => $errors === '' ? 'success' : 'failed',
+                'domains_added'   => 0,
+                'domains_updated' => max(0, (int)($_POST['domains'] ?? 0)),
+                'records_added'   => max(0, (int)($_POST['records_added'] ?? 0)),
+                'records_updated' => max(0, (int)($_POST['records_updated'] ?? 0)),
+                'error_log'       => $errors === '' ? null : mb_substr('Sync rapide (manuelle) :' . "\n" . $errors, 0, 8000),
+            ]);
+            echo json_encode(['success' => true]);
             break;
 
         case 'account_stats':

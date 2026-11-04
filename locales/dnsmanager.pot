@@ -456,3 +456,15 @@ msgstr ""
 
 msgid "Échec :"
 msgstr ""
+
+msgid "Domaines les plus lents :"
+msgstr ""
+
+msgid "Durée : {time} — moyenne {avg} par domaine — {api} % du temps en appels à l'hébergeur ({calls} appels)"
+msgstr ""
+
+msgid "Synchronisation terminée"
+msgstr ""
+
+msgid "Synchronisation terminée avec erreurs"
+msgstr ""

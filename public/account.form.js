@@ -39,6 +39,89 @@ window.dnsmanagerFixHelp = function () {
     [300, 1200, 3000].forEach(function (ms) { setTimeout(run, ms); });
 })();
 
+// ---------------------------------------------------------------------------
+// Indicateur dans l'onglet du navigateur : titre animé (spinner + pourcentage) et icône
+// en anneau de progression, pour suivre la synchro depuis un autre onglet.
+// ---------------------------------------------------------------------------
+window.dnsmanagerTab = (function () {
+    var FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+    var labels = { sync: '', done: '', doneErr: '' };
+    var origTitle = null, origIcons = null, createdLink = null, timer = null, frame = 0, pct = 0;
+
+    function draw(value, mode) {
+        var c = document.createElement('canvas');
+        c.width = c.height = 64;
+        var x = c.getContext('2d');
+        x.lineWidth = 10; x.lineCap = 'round';
+        x.strokeStyle = '#d0d7de';
+        x.beginPath(); x.arc(32, 32, 24, 0, Math.PI * 2); x.stroke();
+        if (mode === 'done' || mode === 'warn') {
+            var col = mode === 'done' ? '#2fb344' : '#f59f00';
+            x.strokeStyle = col;
+            x.beginPath(); x.arc(32, 32, 24, 0, Math.PI * 2); x.stroke();
+            x.lineWidth = 8;
+            x.beginPath();
+            if (mode === 'done') { x.moveTo(20, 33); x.lineTo(29, 42); x.lineTo(45, 23); }
+            else                 { x.moveTo(32, 20); x.lineTo(32, 36); x.moveTo(32, 44); x.lineTo(32, 45); }
+            x.stroke();
+        } else if (value > 0) {
+            x.strokeStyle = '#206bc4';
+            x.beginPath(); x.arc(32, 32, 24, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * value / 100); x.stroke();
+        }
+        return c.toDataURL('image/png');
+    }
+    function setIcon(url) {
+        var list = Array.prototype.slice.call(document.querySelectorAll('link[rel~="icon"]'));
+        if (origIcons === null) {
+            origIcons = list.map(function (l) { return { el: l, href: l.href, type: l.getAttribute('type') }; });
+        }
+        if (list.length === 0) {
+            createdLink = document.createElement('link');
+            createdLink.rel = 'icon';
+            document.head.appendChild(createdLink);
+            list = [createdLink];
+        }
+        list.forEach(function (l) { l.type = 'image/png'; l.href = url; });
+    }
+    function restore() {
+        if (timer) { clearInterval(timer); timer = null; }
+        if (origTitle !== null) document.title = origTitle;
+        if (origIcons) {
+            origIcons.forEach(function (o) {
+                o.el.href = o.href;
+                if (o.type) o.el.setAttribute('type', o.type); else o.el.removeAttribute('type');
+            });
+        }
+        if (createdLink) { createdLink.remove(); createdLink = null; }
+        origTitle = null; origIcons = null;
+    }
+    function render() { document.title = FRAMES[frame % FRAMES.length] + ' ' + pct + ' % — ' + labels.sync; }
+
+    return {
+        labels: labels,
+        start: function () {
+            restore();
+            origTitle = document.title; pct = 0; frame = 0;
+            render(); setIcon(draw(0, 'run'));
+            timer = setInterval(function () { frame++; render(); }, 250);
+        },
+        update: function (value) { pct = value; render(); setIcon(draw(value, 'run')); },
+        finish: function (mode) {
+            if (timer) { clearInterval(timer); timer = null; }
+            document.title = (mode === 'done' ? '✔ ' + labels.done : '⚠ ' + labels.doneErr);
+            setIcon(draw(100, mode));
+            // Restaurer le titre/l'icône d'origine quand l'utilisateur revient sur l'onglet
+            if (!document.hidden) { setTimeout(restore, 6000); return; }
+            var onVisible = function () {
+                if (document.hidden) return;
+                document.removeEventListener('visibilitychange', onVisible);
+                setTimeout(restore, 4000);
+            };
+            document.addEventListener('visibilitychange', onVisible);
+        },
+    };
+})();
+
 window.initDnsManagerForm = function initDnsManagerForm() {
     var data           = window.dnsmanagerData;
     var providerSelect = document.getElementById('dns-provider-select');
@@ -241,33 +324,81 @@ window.initDnsManagerForm = function initDnsManagerForm() {
     // -----------------------------------------------------------------------
     var btnSync     = document.getElementById('dns-btn-sync');
     var syncRunning = false;
+    var tab         = window.dnsmanagerTab;
+    tab.labels.sync    = t('tabSync');
+    tab.labels.done    = t('tabDone');
+    tab.labels.doneErr = t('tabDoneErr');
+
+    function fmtDuration(ms) {
+        var sec = Math.round(ms / 1000);
+        if (sec < 60) return sec + ' s';
+        return Math.floor(sec / 60) + ' min ' + ('0' + (sec % 60)).slice(-2) + ' s';
+    }
+
+    // Met à jour le bloc "Statistiques" (domaines GLPI, dates de synchronisation)
+    function refreshStats() {
+        fetchJson({ action: 'account_stats_local', account_id: accountId })
+            .then(function (d) {
+                if (!d || !d.success) return;
+                var set = function (id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+                set('dns-stat-glpi',    d.glpi_domains);
+                set('dns-stat-lastrec', d.last_records_sync || '—');
+                set('dns-stat-lastlog', d.last_log          || '—');
+            })
+            .catch(function () {});
+    }
+
     if (btnSync) {
         btnSync.addEventListener('click', function () {
             if (syncRunning) return;
             syncRunning = true;
             btnSync.disabled = true;
 
-            var domains = [], index = 0, okCount = 0, recs = 0, errors = [], fails = 0;
+            var domains = [], index = 0, okCount = 0, added = 0, updated = 0, errors = [], fails = 0;
+            var t0 = Date.now(), apiMs = 0, apiCalls = 0, timings = [];
+            tab.start();
 
             function showProgress(done, total, domain) {
                 var pct = total ? Math.round(done / total * 100) : 0;
-                result.innerHTML = '<div class="alert alert-info">'
-                    + '<div class="d-flex align-items-center mb-2">' + SPINNER + '<span>'
-                    + esc(fmt(t('syncProgress'), { done: done, total: total, domain: domain })) + '</span></div>'
-                    + '<div class="progress"><div class="progress-bar" role="progressbar" style="width:' + pct + '%"'
-                    + ' aria-valuenow="' + pct + '" aria-valuemin="0" aria-valuemax="100"></div></div></div>';
+                result.innerHTML =
+                    '<div class="alert alert-info mb-2"><div class="d-flex align-items-center">' + SPINNER
+                    + '<span class="flex-grow-1">' + esc(fmt(t('syncProgress'), { done: done, total: total, domain: domain })) + '</span>'
+                    + '<strong class="ms-3">' + pct + ' %</strong></div></div>'
+                    + '<div class="progress" style="height:.75rem"><div class="progress-bar progress-bar-striped progress-bar-animated"'
+                    + ' role="progressbar" style="width:' + pct + '%" aria-valuenow="' + pct + '" aria-valuemin="0" aria-valuemax="100"></div></div>';
+                tab.update(pct);
             }
 
             function finish(aborted) {
+                var elapsed = Date.now() - t0;
                 btnSync.disabled = false;
                 syncRunning = false;
-                var cls = (aborted || errors.length) ? 'alert-warning' : 'alert-success';
-                var html = '<div class="alert ' + cls + '"><i class="ti ti-circle-check me-2"></i><strong>'
+                var bad  = aborted || errors.length > 0;
+                var html = '<div class="alert ' + (bad ? 'alert-warning' : 'alert-success') + '"><i class="ti ti-circle-check me-2"></i><strong>'
                     + esc(t('syncDone')) + '</strong> '
-                    + esc(fmt(t('syncSummary'), { domains: okCount, records: recs }));
+                    + esc(fmt(t('syncSummary'), { domains: okCount, records: added + updated }));
                 if (aborted) html += '<br>' + esc(t('syncAborted'));
                 if (errors.length) html += '<br>' + esc(t('syncErrors')) + '<br>' + errors.map(esc).join('<br>');
+
+                // Chiffres de performance (diagnostic des lenteurs)
+                var share = elapsed ? Math.round(apiMs / elapsed * 100) : 0;
+                html += '<div class="small text-muted mt-2">' + esc(fmt(t('syncDuration'), {
+                    time: fmtDuration(elapsed), avg: fmtDuration(okCount ? elapsed / okCount : 0), api: share, calls: apiCalls
+                })) + '</div>';
+                var slow = timings.slice().sort(function (x, y) { return y.ms - x.ms; }).slice(0, 3);
+                if (slow.length) {
+                    html += '<div class="small text-muted">' + esc(t('syncSlowest')) + ' '
+                        + slow.map(function (x) { return esc(x.ref + ' (' + fmtDuration(x.ms) + ', ' + x.calls + ')'); }).join(', ') + '</div>';
+                }
                 result.innerHTML = html + '</div>';
+
+                tab.finish(bad ? 'warn' : 'done');
+
+                // Journal + rafraîchissement des statistiques de la fiche
+                fetchJson({
+                    action: 'sync_log', account_id: accountId, duration: Math.round(elapsed / 1000),
+                    domains: okCount, records_added: added, records_updated: updated, errors: errors.join('\n'),
+                }).then(refreshStats, refreshStats);
             }
 
             function next() {
@@ -279,7 +410,11 @@ window.initDnsManagerForm = function initDnsManagerForm() {
                         fails = 0;
                         if (d.success) {
                             okCount++;
-                            recs += (d.records_added || 0) + (d.records_updated || 0);
+                            added   += d.records_added   || 0;
+                            updated += d.records_updated || 0;
+                            apiMs    += d.api_ms    || 0;
+                            apiCalls += d.api_calls || 0;
+                            timings.push({ ref: ref, ms: d.duration_ms || 0, calls: d.api_calls || 0 });
                             (d.errors || []).forEach(function (e) { errors.push(ref + ' : ' + e); });
                         } else {
                             errors.push(ref + ' : ' + d.message);
@@ -300,20 +435,20 @@ window.initDnsManagerForm = function initDnsManagerForm() {
             fetchJson({ action: 'get_sync_domains', account_id: accountId, restrict_entities: 1 })
                 .then(function (d) {
                     if (!d.success) {
-                        btnSync.disabled = false; syncRunning = false;
+                        btnSync.disabled = false; syncRunning = false; tab.finish('warn');
                         result.innerHTML = '<div class="alert alert-danger"><i class="ti ti-circle-x me-2"></i>' + esc(d.message) + '</div>';
                         return;
                     }
                     domains = d.domains || [];
                     if (domains.length === 0) {
-                        btnSync.disabled = false; syncRunning = false;
+                        btnSync.disabled = false; syncRunning = false; tab.finish('done');
                         result.innerHTML = '<div class="alert alert-info">' + esc(t('syncNothing')) + '</div>';
                         return;
                     }
                     next();
                 })
                 .catch(function (e) {
-                    btnSync.disabled = false; syncRunning = false;
+                    btnSync.disabled = false; syncRunning = false; tab.finish('warn');
                     result.innerHTML = '<div class="alert alert-danger">' + esc(commErr(e)) + '</div>';
                 });
         });

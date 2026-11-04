@@ -241,7 +241,9 @@ class GandiProvider implements ProviderInterface
             CURLOPT_SSL_VERIFYPEER => true,
         ]);
 
+        $__t0 = microtime(true);
         $body     = curl_exec($ch);
+        ApiMetrics::record(microtime(true) - $__t0);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error    = curl_error($ch);
         curl_close($ch);

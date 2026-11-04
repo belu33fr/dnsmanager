@@ -26,7 +26,12 @@
             syncErrors:     {{ __("Erreurs :", "dnsmanager")|json_encode|raw }},
             syncNothing:    {{ __("Aucun domaine à synchroniser pour ce compte.", "dnsmanager")|json_encode|raw }},
             syncAborted:    {{ __("Synchronisation interrompue : trop d'erreurs de communication consécutives.", "dnsmanager")|json_encode|raw }},
-            statsRunning:   {{ __("Interrogation de l'hébergeur...", "dnsmanager")|json_encode|raw }}
+            statsRunning:   {{ __("Interrogation de l'hébergeur...", "dnsmanager")|json_encode|raw }},
+            syncDuration:   {{ __("Durée : {time} — moyenne {avg} par domaine — {api} % du temps en appels à l'hébergeur ({calls} appels)", "dnsmanager")|json_encode|raw }},
+            syncSlowest:    {{ __("Domaines les plus lents :", "dnsmanager")|json_encode|raw }},
+            tabSync:        {{ __("Synchronisation", "dnsmanager")|json_encode|raw }},
+            tabDone:        {{ __("Synchronisation terminée", "dnsmanager")|json_encode|raw }},
+            tabDoneErr:     {{ __("Synchronisation terminée avec erreurs", "dnsmanager")|json_encode|raw }}
         }
     };
     </script>
@@ -166,7 +171,7 @@
             <table class="table table-sm table-borderless w-auto mb-0">
                 <tr>
                     <td class="text-muted pe-4">{{ __('Domaines dans GLPI (rattachés à ce compte)', 'dnsmanager') }}</td>
-                    <td><strong>{{ stats.glpi_domains }}</strong></td>
+                    <td><strong id="dns-stat-glpi">{{ stats.glpi_domains }}</strong></td>
                 </tr>
                 <tr>
                     <td class="text-muted pe-4">{{ __("Domaines chez l'hébergeur", 'dnsmanager') }}</td>
@@ -183,11 +188,11 @@
                 </tr>
                 <tr>
                     <td class="text-muted pe-4">{{ __('Dernière synchronisation des enregistrements', 'dnsmanager') }}</td>
-                    <td>{{ stats.last_records_sync ?: '—' }}</td>
+                    <td id="dns-stat-lastrec">{{ stats.last_records_sync ?: '—' }}</td>
                 </tr>
                 <tr>
                     <td class="text-muted pe-4">{{ __('Dernier passage de synchronisation', 'dnsmanager') }}</td>
-                    <td>{{ stats.last_log ?: '—' }}</td>
+                    <td id="dns-stat-lastlog">{{ stats.last_log ?: '—' }}</td>
                 </tr>
             </table>
         </div>
