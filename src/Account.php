@@ -12,6 +12,14 @@ use Supplier;
 
 class Account extends CommonDBTM
 {
+    /**
+     * Secteur du menu GLPI où apparaît le plugin ('management', 'tools', 'admin'...).
+     * Source unique : setup.php (déclaration du menu) ET les en-têtes de toutes les pages
+     * doivent l'utiliser, sinon GLPI ne retrouve pas le menu et perd les liens de la barre
+     * d'en-tête (dont le bouton "Ajouter").
+     */
+    public const MENU_SECTOR = 'management';
+
     public static $rightname = 'plugin_dnsmanager_account';
     public $dohistory  = true;
     public $recursive  = true;  // Active la case "Sous-entités"

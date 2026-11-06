@@ -9,7 +9,7 @@ Session::checkRight('plugin_dnsmanager_account', READ);
 Html::header(
     Account::getTypeName(2),
     $_SERVER['PHP_SELF'],
-    'tools',
+    Account::MENU_SECTOR,
     Account::class,
     'account'
 );

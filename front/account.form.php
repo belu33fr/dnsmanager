@@ -103,7 +103,7 @@ if (isset($_POST['add'])) {
     Html::header(
         Account::getTypeName(1),
         $_SERVER['PHP_SELF'],
-        'tools',
+        Account::MENU_SECTOR,
         Account::class,
         'account'
     );

@@ -4,7 +4,7 @@
  * DNSManage - Plugin GLPI 11 de gestion DNS multi-provider
  */
 
-define('PLUGIN_DNSMANAGER_VERSION', '3.9.17');
+define('PLUGIN_DNSMANAGER_VERSION', '3.9.18');
 define('PLUGIN_DNSMANAGER_MIN_GLPI', '11.0.0');
 define('PLUGIN_DNSMANAGER_MAX_GLPI', '12.0.0');
 
@@ -27,10 +27,10 @@ function plugin_init_dnsmanager(): void
         return;
     }
 
-    // Menu dans "Gestion" (avec les Domaines) — remplacer 'management' par 'tools'
-    // ou 'admin' pour le placer ailleurs.
+    // Menu dans "Gestion" (avec les Domaines). Le secteur est défini une seule fois
+    // (Account::MENU_SECTOR) et réutilisé par les en-têtes de toutes les pages.
     $PLUGIN_HOOKS[Hooks::MENU_TOADD]['dnsmanager'] = [
-        'management' => Account::class,
+        Account::MENU_SECTOR => Account::class,
     ];
 
     // Actions massives via hook (compatible namespace GLPI 11)

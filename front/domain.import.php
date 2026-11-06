@@ -94,7 +94,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'import') {
 Html::header(
     __('Import de domaines DNS', 'dnsmanager'),
     $_SERVER['PHP_SELF'],
-    'tools',
+    Account::MENU_SECTOR,
     Account::class,
     'account'
 );
