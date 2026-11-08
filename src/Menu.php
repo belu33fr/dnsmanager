@@ -81,6 +81,14 @@ class Menu extends CommonGLPI
             ];
         }
 
+        // Diagnostic temporaire : une ligne dans le journal Apache à la génération du menu
+        error_log(sprintf(
+            'DNSManage menu : entrées=[%s] ; droit "%s" (Domaines GLPI)=%s ; droit "%s" (plugin)=%s',
+            implode(',', array_keys($entries)),
+            Domain::$rightname, var_export(Session::haveRight(Domain::$rightname, READ), true),
+            Account::$rightname, var_export(Session::haveRight(Account::$rightname, READ), true)
+        ));
+
         if ($entries === []) {
             return [];
         }

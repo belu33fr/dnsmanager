@@ -7,7 +7,7 @@ use CronTask;
 
 class Synclog extends CommonDBTM
 {
-    public static $rightname = 'config';
+    public static $rightname = 'plugin_dnsmanager_account';
 
     public static function getTypeName($nb = 0): string
     {

@@ -7,7 +7,8 @@ use Html;
 
 include('../../../inc/includes.php');
 
-Session::checkRight('config', READ);
+// Même droit que celui qui affiche l'entrée du menu (plugin), pas le droit GLPI "config"
+Session::checkRight(Account::$rightname, READ);
 
 Html::header(
     Synclog::getTypeName(2),
