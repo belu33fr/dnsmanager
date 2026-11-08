@@ -23,6 +23,7 @@ function plugin_dnsmanager_install(): bool
             CREATE TABLE `$table` (
                 `id`               INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `name`             VARCHAR(255) NOT NULL DEFAULT '',
+                `account_type`     INT UNSIGNED NOT NULL DEFAULT 1,
                 `provider_type`    VARCHAR(100) NOT NULL DEFAULT '',
                 `endpoint`         VARCHAR(255) NOT NULL DEFAULT '',
                 `is_active`        TINYINT(1) NOT NULL DEFAULT 1,
@@ -38,7 +39,8 @@ function plugin_dnsmanager_install(): bool
                 PRIMARY KEY (`id`),
                 KEY `name` (`name`),
                 KEY `entities_id` (`entities_id`),
-                KEY `is_active` (`is_active`)
+                KEY `is_active` (`is_active`),
+                KEY `account_type` (`account_type`)
             ) ENGINE=InnoDB
             DEFAULT CHARSET={$default_charset}
             COLLATE={$default_collation}
@@ -266,6 +268,7 @@ function plugin_dnsmanager_migrate(): void
         'contact_groups_id'                               => "ALTER TABLE `$accountTable` ADD COLUMN `contact_groups_id` INT(10) UNSIGNED NOT NULL DEFAULT 0",
         'allow_bidirectional_sync'                        => "ALTER TABLE `$accountTable` ADD COLUMN `allow_bidirectional_sync` TINYINT(1) NOT NULL DEFAULT 0",
         'provider_key_name'                               => "ALTER TABLE `$accountTable` ADD COLUMN `provider_key_name` VARCHAR(255) NOT NULL DEFAULT ''",
+        'account_type'                                    => "ALTER TABLE `$accountTable` ADD COLUMN `account_type` INT UNSIGNED NOT NULL DEFAULT 1, ADD KEY `account_type` (`account_type`)",
         'stat_provider_domains'                           => "ALTER TABLE `$accountTable` ADD COLUMN `stat_provider_domains` INT(10) UNSIGNED NULL DEFAULT NULL",
         'stat_provider_not_linked'                        => "ALTER TABLE `$accountTable` ADD COLUMN `stat_provider_not_linked` INT(10) UNSIGNED NULL DEFAULT NULL",
         'stat_provider_checked_at'                        => "ALTER TABLE `$accountTable` ADD COLUMN `stat_provider_checked_at` DATETIME NULL DEFAULT NULL",
@@ -318,6 +321,19 @@ function plugin_dnsmanager_redefine_menus($menu)
     $menu[Menu::MENU_SECTOR]['content']['domain'] = $native;
 
     return $menu;
+}
+
+/**
+ * Hook de recherche GLPI (Search::addDefaultWhere) : la liste des hébergeurs ne contient que
+ * les comptes de type DNS (account_type = 1). Prévu pour la future fusion des comptes de
+ * plusieurs plugins (DNS, mail, sauvegarde...) dans une table unique.
+ */
+function plugin_dnsmanager_addDefaultWhere($itemtype)
+{
+    if ($itemtype === Account::class) {
+        return '`' . Account::getTable() . '`.`account_type` = ' . (int)Account::TYPE_DNS;
+    }
+    return '';
 }
 
 function plugin_dnsmanager_MassiveActions(string $type): array

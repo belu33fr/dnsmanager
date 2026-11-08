@@ -12,6 +12,15 @@ use Supplier;
 
 class Account extends CommonDBTM
 {
+    /**
+     * Valeur de `account_type` pour les comptes de fournisseurs DNS. Prévu pour la future
+     * fusion, dans une table unique, des comptes de plusieurs plugins (DNS, mail, sauvegarde...) :
+     * chaque plugin ne lit et n'écrit que ses propres comptes. Posée à la création, jamais
+     * modifiable depuis le formulaire. Les lectures PAR IDENTIFIANT (fiche d'un compte) ne
+     * filtrent pas ; les listes et parcours (liste, tâche automatique) filtrent.
+     */
+    public const TYPE_DNS = 1;
+
     public static $rightname = 'plugin_dnsmanager_account';
     public $dohistory  = true;
     public $recursive  = true;  // Active la case "Sous-entités"
@@ -463,13 +472,21 @@ class Account extends CommonDBTM
     public function prepareInputForAdd($input)
     {
         $input = parent::prepareInputForAdd($input);
-        return $this->cleanInput($input);
+        $input = $this->cleanInput($input);
+        if (is_array($input)) {
+            $input['account_type'] = self::TYPE_DNS;
+        }
+        return $input;
     }
 
     public function prepareInputForUpdate($input)
     {
         $input = parent::prepareInputForUpdate($input);
-        return $this->cleanInput($input);
+        $input = $this->cleanInput($input);
+        if (is_array($input)) {
+            unset($input['account_type']);   // jamais modifiable depuis le formulaire
+        }
+        return $input;
     }
 
     private function cleanInput(array $input): array
@@ -505,7 +522,7 @@ class Account extends CommonDBTM
     {
         global $DB;
         $accounts = [];
-        foreach ($DB->request(['FROM' => self::getTable(), 'WHERE' => ['is_active' => 1], 'ORDER' => 'name ASC']) as $row) {
+        foreach ($DB->request(['FROM' => self::getTable(), 'WHERE' => ['is_active' => 1, 'account_type' => self::TYPE_DNS], 'ORDER' => 'name ASC']) as $row) {
             $accounts[] = $row;
         }
         return $accounts;
