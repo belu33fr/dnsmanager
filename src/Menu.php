@@ -13,7 +13,7 @@ use Session;
  *
  * Entrées :
  *  - Hébergeurs : la gestion des comptes DNS Hébergeurs du plugin ;
- *  - Domaines   : raccourci vers la liste native des Domaines de GLPI ;
+ *  - Domaines   : l'entrée native de GLPI, déplacée ici depuis le menu Gestion ;
  *  - Journal de synchronisation.
  */
 class Menu extends CommonGLPI
@@ -61,7 +61,8 @@ class Menu extends CommonGLPI
             ];
         }
 
-        // Raccourci vers les Domaines natifs de GLPI (libellé et droits : ceux de GLPI)
+        // Domaines natifs de GLPI (libellé et droits : ceux de GLPI). Cette entrée est ensuite
+        // remplacée par l'entrée native complète, déplacée depuis Gestion (hook redefine_menus).
         if (Session::haveRight(Domain::$rightname, READ)) {
             $entries['domain'] = [
                 'title' => Domain::getTypeName(2),
@@ -80,14 +81,6 @@ class Menu extends CommonGLPI
                 'links' => ['search' => $syncUrl],
             ];
         }
-
-        // Diagnostic temporaire : une ligne dans le journal Apache à la génération du menu
-        error_log(sprintf(
-            'DNSManage menu : entrées=[%s] ; droit "%s" (Domaines GLPI)=%s ; droit "%s" (plugin)=%s',
-            implode(',', array_keys($entries)),
-            Domain::$rightname, var_export(Session::haveRight(Domain::$rightname, READ), true),
-            Account::$rightname, var_export(Session::haveRight(Account::$rightname, READ), true)
-        ));
 
         if ($entries === []) {
             return [];

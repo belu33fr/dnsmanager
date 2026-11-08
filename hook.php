@@ -5,6 +5,7 @@ use GlpiPlugin\Dnsmanager\Credential;
 use GlpiPlugin\Dnsmanager\Config as DnsConfig;
 use GlpiPlugin\Dnsmanager\Synclog;
 use GlpiPlugin\Dnsmanager\Right;
+use GlpiPlugin\Dnsmanager\Menu;
 
 function plugin_dnsmanager_install(): bool
 {
@@ -282,6 +283,43 @@ function plugin_dnsmanager_migrate(): void
  * Contourne le bug getItemForItemtype() avec namespace GLPI 11
  * @see https://github.com/glpi-project/glpi/issues/8449
  */
+/**
+ * Hook redefine_menus : déplace l'entrée native « Domaines » du menu Gestion vers « Gestion DNS ».
+ *
+ * L'entrée est DÉPLACÉE avec tout son contenu (liens, sous-pages : enregistrements, types…),
+ * pas simplement masquée, pour que ces sous-pages restent accessibles. Elle n'est déplacée
+ * que pour les utilisateurs qui voient notre entrée « Domaines » (droit GLPI sur les domaines) :
+ * les autres ne sont pas concernés.
+ */
+function plugin_dnsmanager_redefine_menus($menu)
+{
+    if (!is_array($menu) || !isset($menu[Menu::MENU_SECTOR]['content']['domain'], $menu['management']['content'])) {
+        return $menu;
+    }
+
+    // Clé de l'entrée native : 'domain' ; à défaut, celle dont la page est la liste des domaines
+    $key = isset($menu['management']['content']['domain']) ? 'domain' : null;
+    if ($key === null) {
+        $url = \Domain::getSearchURL(false);
+        foreach ($menu['management']['content'] as $k => $entry) {
+            if (is_array($entry) && ($entry['page'] ?? null) === $url) {
+                $key = $k;
+                break;
+            }
+        }
+    }
+    if ($key === null) {
+        return $menu;
+    }
+
+    $native = $menu['management']['content'][$key];
+    unset($menu['management']['content'][$key]);
+    // L'entrée native (complète) remplace notre simple raccourci
+    $menu[Menu::MENU_SECTOR]['content']['domain'] = $native;
+
+    return $menu;
+}
+
 function plugin_dnsmanager_MassiveActions(string $type): array
 {
     $actions = [];
