@@ -1,6 +1,7 @@
 <?php
 
 use GlpiPlugin\Dnsmanager\Account;
+use GlpiPlugin\Dnsmanager\Menu;
 
 include('../../../inc/includes.php');
 
@@ -9,8 +10,7 @@ Session::checkRight('plugin_dnsmanager_account', READ);
 Html::header(
     Account::getTypeName(2),
     $_SERVER['PHP_SELF'],
-    Account::MENU_SECTOR,
-    Account::class,
+    Menu::MENU_SECTOR,
     'account'
 );
 

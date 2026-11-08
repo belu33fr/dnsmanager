@@ -4,12 +4,13 @@
  * DNSManage - Plugin GLPI 11 de gestion DNS multi-provider
  */
 
-define('PLUGIN_DNSMANAGER_VERSION', '3.9.18');
+define('PLUGIN_DNSMANAGER_VERSION', '3.10.0');
 define('PLUGIN_DNSMANAGER_MIN_GLPI', '11.0.0');
 define('PLUGIN_DNSMANAGER_MAX_GLPI', '12.0.0');
 
 use Glpi\Plugin\Hooks;
 use GlpiPlugin\Dnsmanager\Account;
+use GlpiPlugin\Dnsmanager\Menu;
 use GlpiPlugin\Dnsmanager\Synclog;
 use GlpiPlugin\Dnsmanager\Right;
 use GlpiPlugin\Dnsmanager\PluginConfig;
@@ -27,10 +28,10 @@ function plugin_init_dnsmanager(): void
         return;
     }
 
-    // Menu dans "Gestion" (avec les Domaines). Le secteur est défini une seule fois
-    // (Account::MENU_SECTOR) et réutilisé par les en-têtes de toutes les pages.
+    // Menu principal « Gestion DNS » : nouveau secteur, entrées déclarées dans Menu::getMenuContent.
+    // La valeur doit être une liste de classes (tableau) pour que GLPI crée le secteur.
     $PLUGIN_HOOKS[Hooks::MENU_TOADD]['dnsmanager'] = [
-        Account::MENU_SECTOR => Account::class,
+        Menu::MENU_SECTOR => [Menu::class],
     ];
 
     // Actions massives via hook (compatible namespace GLPI 11)

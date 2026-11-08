@@ -1,6 +1,7 @@
 <?php
 
 use GlpiPlugin\Dnsmanager\Account;
+use GlpiPlugin\Dnsmanager\Menu;
 use GlpiPlugin\Dnsmanager\Credential;
 
 include('../../../inc/includes.php');
@@ -103,8 +104,7 @@ if (isset($_POST['add'])) {
     Html::header(
         Account::getTypeName(1),
         $_SERVER['PHP_SELF'],
-        Account::MENU_SECTOR,
-        Account::class,
+        Menu::MENU_SECTOR,
         'account'
     );
 

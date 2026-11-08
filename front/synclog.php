@@ -1,6 +1,7 @@
 <?php
 
 use GlpiPlugin\Dnsmanager\Account;
+use GlpiPlugin\Dnsmanager\Menu;
 use GlpiPlugin\Dnsmanager\Synclog;
 use Html;
 
@@ -11,8 +12,7 @@ Session::checkRight('config', READ);
 Html::header(
     Synclog::getTypeName(2),
     $_SERVER['PHP_SELF'],
-    Account::MENU_SECTOR,
-    Account::class,
+    Menu::MENU_SECTOR,
     'synclog'
 );
 

@@ -12,14 +12,6 @@ use Supplier;
 
 class Account extends CommonDBTM
 {
-    /**
-     * Secteur du menu GLPI où apparaît le plugin ('management', 'tools', 'admin'...).
-     * Source unique : setup.php (déclaration du menu) ET les en-têtes de toutes les pages
-     * doivent l'utiliser, sinon GLPI ne retrouve pas le menu et perd les liens de la barre
-     * d'en-tête (dont le bouton "Ajouter").
-     */
-    public const MENU_SECTOR = 'management';
-
     public static $rightname = 'plugin_dnsmanager_account';
     public $dohistory  = true;
     public $recursive  = true;  // Active la case "Sous-entités"
@@ -71,44 +63,6 @@ class Account extends CommonDBTM
     public static function getSearchURL($full = true): string
     {
         return Plugin::getWebDir('dnsmanager', $full) . '/front/account.php';
-    }
-
-    // ------------------------------------------------------------------
-    // Menu GLPI 11
-    // ------------------------------------------------------------------
-
-    public static function getMenuName(): string
-    {
-        return __('DNS Hébergeurs', 'dnsmanager');
-    }
-
-    public static function getMenuContent(): array
-    {
-        $search = self::getSearchURL(false);
-        $form   = self::getFormURL(false);
-
-        return [
-            'title'   => self::getMenuName(),
-            'page'    => $search,
-            'icon'    => self::getIcon(),
-            'options' => [
-                'account' => [
-                    'title' => self::getTypeName(2),
-                    'page'  => $search,
-                    'links' => [
-                        'search' => $search,
-                        'add'    => $form,
-                    ],
-                ],
-                'synclog' => [
-                    'title' => Synclog::getTypeName(2),
-                    'page'  => Plugin::getWebDir('dnsmanager', false) . '/front/synclog.php',
-                    'links' => [
-                        'search' => Plugin::getWebDir('dnsmanager', false) . '/front/synclog.php',
-                    ],
-                ],
-            ],
-        ];
     }
 
     // ------------------------------------------------------------------

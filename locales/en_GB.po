@@ -538,3 +538,9 @@ msgstr "{name}: {domains} domain(s) synchronised — {added} record(s) created, 
 
 msgid "{n} nouveau(x) domaine(s) à importer : {names}"
 msgstr "{n} new domain(s) to import: {names}"
+
+msgid "Gestion DNS"
+msgstr "DNS Management"
+
+msgid "Hébergeurs"
+msgstr "Providers"

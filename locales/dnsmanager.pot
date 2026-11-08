@@ -537,3 +537,9 @@ msgstr ""
 
 msgid "{n} nouveau(x) domaine(s) à importer : {names}"
 msgstr ""
+
+msgid "Gestion DNS"
+msgstr ""
+
+msgid "Hébergeurs"
+msgstr ""

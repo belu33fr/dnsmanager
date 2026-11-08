@@ -1,6 +1,7 @@
 <?php
 
 use GlpiPlugin\Dnsmanager\Account;
+use GlpiPlugin\Dnsmanager\Menu;
 use GlpiPlugin\Dnsmanager\DomainImporter;
 use GlpiPlugin\Dnsmanager\Importer;
 use GlpiPlugin\Dnsmanager\Right;
@@ -94,8 +95,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'import') {
 Html::header(
     __('Import de domaines DNS', 'dnsmanager'),
     $_SERVER['PHP_SELF'],
-    Account::MENU_SECTOR,
-    Account::class,
+    Menu::MENU_SECTOR,
     'account'
 );
 
