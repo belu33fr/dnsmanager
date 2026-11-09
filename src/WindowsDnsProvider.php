@@ -321,6 +321,26 @@ class WindowsDnsProvider implements ProviderInterface
         if ($this->uri === '' || $this->bindDn === '') {
             throw new \RuntimeException('Le serveur LDAP et le compte de lecture sont obligatoires.');
         }
+        $parts  = parse_url($this->uri);
+        $scheme = strtolower((string)($parts['scheme'] ?? ''));
+        $host   = (string)($parts['host'] ?? '');
+        if (!in_array($scheme, ['ldap', 'ldaps'], true) || $host === '') {
+            throw new \RuntimeException('URI LDAP invalide : ' . $this->uri . ' (attendu : ldaps://serveur:636 ou ldap://serveur:389).');
+        }
+        $port = (int)($parts['port'] ?? ($scheme === 'ldaps' ? 636 : 389));
+
+        // Test réseau préalable : distingue "serveur injoignable" d'un problème de TLS ou de LDAP
+        $errNo  = 0;
+        $errStr = '';
+        $sock   = @fsockopen($host, $port, $errNo, $errStr, 5);
+        if ($sock === false) {
+            throw new \RuntimeException(sprintf(
+                'Le serveur %s est injoignable sur le port %d depuis le serveur GLPI (%s). Vérifiez le nom (résolution DNS), l\'adresse et le pare-feu.',
+                $host, $port, $errStr !== '' ? $errStr : 'erreur ' . $errNo
+            ));
+        }
+        fclose($sock);
+
         if (!$this->verifyCert && defined('LDAP_OPT_X_TLS_REQUIRE_CERT')) {
             ldap_set_option(null, LDAP_OPT_X_TLS_REQUIRE_CERT, LDAP_OPT_X_TLS_NEVER);
         }
@@ -334,7 +354,18 @@ class WindowsDnsProvider implements ProviderInterface
         ldap_set_option($link, LDAP_OPT_NETWORK_TIMEOUT, 10);
 
         if (!@ldap_bind($link, $this->bindDn, $this->password)) {
-            throw new \RuntimeException('Connexion LDAP refusée : ' . ldap_error($link));
+            $code = ldap_errno($link);
+            $hint = '';
+            if ($code === -1 && $scheme === 'ldaps' && $this->verifyCert) {
+                $hint = ' Le port répond : le certificat du serveur n\'est probablement pas reconnu par cette machine. Pour tester, mettez « Vérifier le certificat » à non ; pour une solution durable, installez l\'autorité de certification interne sur le serveur GLPI.';
+            } elseif ($code === -1) {
+                $hint = ' Le port répond mais la connexion LDAP échoue : vérifiez que le schéma (ldap ou ldaps) correspond au port.';
+            } elseif ($code === 49) {
+                $hint = ' Identifiants refusés : vérifiez le compte (utilisateur@domaine.local) et le mot de passe.';
+            } elseif ($code === 8 || $code === 13) {
+                $hint = ' Le contrôleur de domaine exige une connexion chiffrée : utilisez ldaps://.';
+            }
+            throw new \RuntimeException('Connexion LDAP refusée : ' . ldap_error($link) . ' (code ' . $code . ').' . $hint);
         }
         return $this->link = $link;
     }
