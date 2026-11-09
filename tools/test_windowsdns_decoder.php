@@ -4,9 +4,10 @@
  *     php tools/test_windowsdns_decoder.php
  * Sortie : une ligne par cas, code de retour 1 en cas d'échec.
  *
- * Les cas "réels" viennent d'un contrôleur de domaine (zone blservices.fr) ; les cas
- * "synthétiques" (MX, TXT, SRV, AAAA, PTR) sont construits d'après la spécification,
- * en attendant des échantillons réels : ils ne prouvent que la cohérence du décodeur.
+ * Les cas "réels" viennent d'un contrôleur de domaine (zones blservices.fr et
+ * blconseils.com : A, NS, CNAME, SOA, MX, SRV) ; les cas "synthétiques" (TXT, AAAA, PTR)
+ * sont construits d'après la spécification, en attendant des échantillons réels : ils ne
+ * prouvent que la cohérence du décodeur.
  */
 require __DIR__ . '/../src/WindowsDnsDecoder.php';
 
@@ -39,9 +40,14 @@ $cases = [
     ['SOA @',            hex('4E 00 06 00 05 F0 00 00 12 00 00 00 00 00 0E 10 00 00 00 00 00 00 00 00 00 00 00 11 00 00 03 84 00 00 02 58 00 01 51 80 00 00 0E 10 19 03 06 73 70 69 72 6F 75 0A 62 6C 63 6F 6E 73 65 69 6C 73 05 6C 6F 63 61 6C 00 1D 03 0A 68 6F 73 74 6D 61 73 74 65 72 0A 62 6C 63 6F 6E 73 65 69 6C 73 05 6C 6F 63 61 6C 00'), ['SOA', 3600, true, 240, 'spirou.blconseils.local. hostmaster.blconseils.local. 17 900 600 86400 3600']],
     ['NS @ 1',           hex('1B 00 02 00 05 F0 00 00 12 00 00 00 00 00 0E 10 00 00 00 00 00 00 00 00 19 03 06 73 70 69 72 6F 75 0A 62 6C 63 6F 6E 73 65 69 6C 73 05 6C 6F 63 61 6C 00'), ['NS', 3600, true, 240, 'spirou.blconseils.local.']],
     ['NS @ 2',           hex('21 00 02 00 05 F0 00 00 12 00 00 00 00 00 0E 10 00 00 00 00 00 00 00 00 1F 03 0C 70 74 69 74 2D 6D 61 75 72 69 63 65 0A 62 6C 63 6F 6E 73 65 69 6C 73 05 6C 6F 63 61 6C 00'), ['NS', 3600, true, 240, 'ptit-maurice.blconseils.local.']],
+    // ---- réels (blconseils.com)
+    ['MX @',             hex('30 00 0F 00 05 F0 00 00 40 00 00 00 00 00 0E 10 00 00 00 00 00 00 00 00 00 0A 2C 05 0E 62 6C 63 6F 6E 73 65 69 6C 73 2D 63 6F 6D 04 6D 61 69 6C 0A 70 72 6F 74 65 63 74 69 6F 6E 07 6F 75 74 6C 6F 6F 6B 03 63 6F 6D 00'), ['MX', 3600, true, 240, '10 blconseils-com.mail.protection.outlook.com.']],
+    ['SRV _autodiscover._tcp', hex('1D 00 21 00 05 F0 00 00 3E 00 00 00 00 00 0E 10 00 00 00 00 00 00 00 00 00 0A 00 0A 01 BB 15 03 04 6D 61 69 6C 0A 62 6C 63 6F 6E 73 65 69 6C 73 03 63 6F 6D 00'), ['SRV', 3600, true, 240, '10 10 443 mail.blconseils.com.']],
+    ['CNAME www',        hex('19 00 05 00 05 F0 00 00 3F 00 00 00 00 00 0E 10 00 00 00 00 00 00 00 00 17 03 09 63 75 73 74 6F 6D 65 72 73 08 63 6D 6F 6E 73 69 74 65 02 66 72 00'), ['CNAME', 3600, true, 240, 'customers.cmonsite.fr.']],
+    ['CNAME ftp (4 labels)', hex('14 00 05 00 05 F0 00 00 0E 00 00 00 00 00 0E 10 00 00 00 00 00 00 00 00 12 04 03 66 74 70 04 36 30 67 70 03 6F 76 68 03 6E 65 74 00'), ['CNAME', 3600, true, 240, 'ftp.60gp.ovh.net.']],
+    // délégation de sous-domaine : rang 0x82 et horodatage non nul (donc "non statique")
+    ['NS délégation externe', hex('1B 00 02 00 05 82 00 00 10 00 00 00 00 00 0E 10 00 00 00 00 DA AC 36 00 19 03 06 73 70 69 72 6F 75 0A 62 6C 63 6F 6E 73 65 69 6C 73 05 6C 6F 63 61 6C 00'), ['NS', 3600, false, 130, 'spirou.blconseils.local.']],
     // ---- synthétiques (spécification)
-    ['MX (synth.)',      rec(15, pack('n', 10) . name('mail.example.com.')), ['MX', 3600, true, 240, '10 mail.example.com.']],
-    ['SRV (synth.)',     rec(33, pack('nnn', 0, 5, 443) . name('srv.example.com.')), ['SRV', 3600, true, 240, '0 5 443 srv.example.com.']],
     ['TXT (synth.)',     rec(16, chr(6) . 'v=spf1' . chr(4) . ' -all'), ['TXT', 3600, true, 240, 'v=spf1 -all']],
     ['AAAA (synth.)',    rec(28, inet_pton('2001:db8::1')), ['AAAA', 3600, true, 240, '2001:db8::1']],
     ['PTR (synth.)',     rec(12, name('host.example.com.')), ['PTR', 3600, true, 240, 'host.example.com.']],

@@ -23,7 +23,7 @@ namespace GlpiPlugin\Dnsmanager;
  * Un nom est codé : [longueur totale (terminateur compris)] [nombre de labels] puis, pour
  * chaque label, [longueur] [octets], et un 0 final.
  *
- * Validé sur des données réelles : A, NS, CNAME, SOA. MX, TXT, SRV, AAAA et PTR suivent la
+ * Validé sur des données réelles : A, NS, CNAME, SOA, MX, SRV. TXT, AAAA et PTR suivent la
  * spécification mais n'ont pas encore été confrontés à des données réelles.
  */
 final class WindowsDnsDecoder
