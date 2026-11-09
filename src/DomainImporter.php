@@ -265,6 +265,14 @@ class DomainImporter
         $domainInfo = $this->provider->getDomainInfo($providerRef);
         $domainName = $providerRef; // le ref OVH = nom de zone = nom de domaine
 
+        // Dates : renseignées seulement si le fournisseur les connaît (un serveur DNS interne
+        // n'a ni date de création ni date d'expiration : on laisse les champs vides).
+        $dates = [];
+        $created = $this->parseDate($domainInfo['creation_date'] ?? '');
+        if ($created !== '') $dates['date_domaincreation'] = $created;
+        $expires = $this->parseDate($domainInfo['expiration_date'] ?? '');
+        if ($expires !== '') $dates['date_expiration'] = $expires;
+
         // Créer le domaine dans GLPI
         $domain = new Domain();
         $id = $domain->add([
@@ -274,11 +282,9 @@ class DomainImporter
             'is_active'      => 1,
             'domaintypes_id' => $this->getInternetTypeId(),
             'suppliers_id'   => (int)($this->account['suppliers_id'] ?? 0),
-            'date_domaincreation' => $this->parseDate($domainInfo['creation_date']   ?? ''),
-            'date_expiration'     => $this->parseDate($domainInfo['expiration_date'] ?? ''),
             'comment'        => 'Importé via DNSManage',
             'is_deleted'     => 0,
-        ]);
+        ] + $dates);
 
         if (!$id) throw new \RuntimeException("Impossible de créer le domaine '$domainName'.");
 
@@ -457,6 +463,9 @@ class DomainImporter
 
     private function parseDate(string $date): string
     {
+        // new DateTime('') vaut "maintenant" : une date vide doit rester vide, sinon un domaine
+        // sans date connue (ex. serveur DNS interne) recevrait la date du jour.
+        if (trim($date) === '') return '';
         try { return (new \DateTime($date))->format('Y-m-d'); }
         catch (\Exception) { return ''; }
     }

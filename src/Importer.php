@@ -867,7 +867,11 @@ class Importer
 
     private function parseDate(string $date): string
     {
-        try { return (new \DateTime($date))->format('Y-m-d'); } catch (\Exception) { return ''; }
+        // new DateTime('') vaut "maintenant" : une date vide doit rester vide, sinon un domaine
+        // sans date connue (ex. serveur DNS interne) recevrait la date du jour.
+        if (trim($date) === '') return '';
+        try { return (new \DateTime($date))->format('Y-m-d'); }
+        catch (\Exception) { return ''; }
     }
 
     private function startLog(): int
