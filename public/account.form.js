@@ -208,7 +208,17 @@ window.initDnsManagerForm = function initDnsManagerForm() {
         if (!sel) return;
         sel.innerHTML = '';
         var keys = Object.keys(endpoints || {});
-        if (keys.length === 0) { if (sec) sec.style.display = 'none'; return; }
+        if (keys.length === 0) {
+            // Fournisseur sans endpoint (ex. serveur DNS Windows) : le champ ne doit plus être
+            // obligatoire, sinon le navigateur bloque l'envoi du formulaire sans rien afficher
+            // (champ obligatoire invisible et sans valeur possible).
+            sel.required = false;
+            var none = document.createElement('option');
+            none.value = ''; none.selected = true;
+            sel.appendChild(none);
+            if (sec) sec.style.display = 'none';
+            return;
+        }
         if (sec) sec.style.display = '';
 
         var empty = document.createElement('option');
