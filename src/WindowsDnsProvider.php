@@ -41,6 +41,9 @@ class WindowsDnsProvider implements ProviderInterface
     /** Résultat de la lecture de chaque conteneur de zones (diagnostic) */
     private array $containerStatus = [];
 
+    /** Zones présentes dans plusieurs conteneurs (la première, par ordre de préférence, est retenue) */
+    private array $duplicateZones = [];
+
     public function __construct(array $credentials, string $endpoint = '')
     {
         $this->uri        = trim((string)($credentials['ldap_uri'] ?? ''));
@@ -149,6 +152,7 @@ class WindowsDnsProvider implements ProviderInterface
             'domain'  => $this->adDomain,
             'who'     => $this->whoami,
             'status'  => $this->containerStatus,
+            'dups'    => $this->duplicateZones,
             'counts'  => $counts,
             'ok'      => $ok,
             'ko'      => $ko,
@@ -211,6 +215,9 @@ class WindowsDnsProvider implements ProviderInterface
             $lines[] = '  ' . $label . ' : ' . ($st['error'] === null
                 ? $st['count'] . ' zone(s)' . $extra
                 : 'illisible — ' . $st['error'] . (strpos($st['error'], 'code 50') !== false ? ' : le compte n\'a pas le droit de lire cette partition' : ''));
+        }
+        if (!empty($d['dups'])) {
+            $lines[] = 'Zone présente dans plusieurs conteneurs : ' . implode(' ; ', $d['dups']) . ' — vérifiez qu\'il ne s\'agit pas d\'un reliquat.';
         }
         $allEmpty = $d['status'] !== [];
         foreach ($d['status'] as $st) {
@@ -580,6 +587,8 @@ class WindowsDnsProvider implements ProviderInterface
                 $key = strtolower((string)$name);
                 if (!isset($zones[$key])) {
                     $zones[$key] = ['name' => (string)$name, 'dn' => (string)$entries[$i]['dn'], 'container' => $label];
+                } else {
+                    $this->duplicateZones[] = (string)$name . ' (retenue : ' . $zones[$key]['container'] . ', ignorée : ' . $label . ')';
                 }
             }
         }
