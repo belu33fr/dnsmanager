@@ -10,8 +10,10 @@
  * prouvent que la cohérence du décodeur.
  */
 require __DIR__ . '/../src/WindowsDnsDecoder.php';
+require __DIR__ . '/../src/WindowsDnsRules.php';
 
 use GlpiPlugin\Dnsmanager\WindowsDnsDecoder as D;
+use GlpiPlugin\Dnsmanager\WindowsDnsRules as R;
 
 function hex(string $h): string { return hex2bin(str_replace(' ', '', $h)); }
 
@@ -48,7 +50,7 @@ $cases = [
     // délégation de sous-domaine : rang 0x82 et horodatage non nul (donc "non statique")
     ['NS délégation externe', hex('1B 00 02 00 05 82 00 00 10 00 00 00 00 00 0E 10 00 00 00 00 DA AC 36 00 19 03 06 73 70 69 72 6F 75 0A 62 6C 63 6F 6E 73 65 69 6C 73 05 6C 6F 63 61 6C 00'), ['NS', 3600, false, 130, 'spirou.blconseils.local.']],
     // ---- synthétiques (spécification)
-    ['TXT (synth.)',     rec(16, chr(6) . 'v=spf1' . chr(4) . ' -all'), ['TXT', 3600, true, 240, 'v=spf1 -all']],
+    ['TXT (synth.)',     rec(16, chr(6) . 'v=spf1' . chr(5) . ' -all'), ['TXT', 3600, true, 240, 'v=spf1 -all']],
     ['AAAA (synth.)',    rec(28, inet_pton('2001:db8::1')), ['AAAA', 3600, true, 240, '2001:db8::1']],
     ['PTR (synth.)',     rec(12, name('host.example.com.')), ['PTR', 3600, true, 240, 'host.example.com.']],
     ['dynamique (synth.)', rec(1, inet_pton('10.0.0.5'), 1200, 3700000), ['A', 1200, false, 240, '10.0.0.5']],
@@ -77,6 +79,40 @@ foreach ($g as [$label, $got, $expected]) {
     $ok = ($got === $expected);
     if (!$ok) { $fail++; }
     printf("%-30s %s\n", $label, $ok ? 'OK' : 'ECHEC');
+}
+
+// ---- règles de sélection (WindowsDnsRules)
+$internal = R::parseTldList(R::DEFAULT_INTERNAL_TLDS);
+$r = [
+    ['liste : ponctuation et point initial', R::parseTldList('local;.interne, lan'), ['local', 'interne', 'lan']],
+    ['zone blconseils.com',          R::isImportableZone('blconseils.com', $internal),         true],
+    ['zone BLConseils.local',        R::isImportableZone('BLConseils.local', $internal),       true],
+    ['zone support.it-eco.fr',       R::isImportableZone('support.it-eco.fr', $internal),      true],
+    ['zone RootDNSServers',          R::isImportableZone('RootDNSServers', $internal),         false],
+    ['zone ..TrustAnchors',          R::isImportableZone('..TrustAnchors', $internal),         false],
+    ['zone _msdcs.BLConseils.local', R::isImportableZone('_msdcs.BLConseils.local', $internal), false],
+    ['zone inverse arpa',            R::isImportableZone('1.168.192.in-addr.arpa', $internal), false],
+    ['extension inconnue',           R::isImportableZone('foo.zzzunknown', $internal),         false],
+    ['extension interne déclarée',   R::isImportableZone('foo.corp', ['corp']),                true],
+    ['extension interne non déclarée', R::isImportableZone('foo.corp', []),                    false],
+    ['AD : _msdcs dans la zone AD',  R::isAdTechnicalNode('_ldap._tcp.dc._msdcs', 'blconseils.local', 'blconseils.local'), true],
+    ['AD : _sites dans la zone AD',  R::isAdTechnicalNode('_kerberos._tcp.Default-First-Site-Name._sites', 'BLConseils.local', 'blconseils.local'), true],
+    ['AD : _autodiscover ailleurs',  R::isAdTechnicalNode('_autodiscover._tcp', 'blconseils.com', 'blconseils.local'), false],
+    ['AD : hôte ordinaire dans la zone AD', R::isAdTechnicalNode('www', 'blconseils.local', 'blconseils.local'), false],
+    ['accepte : MX statique',        R::acceptRecord(['type' => 'MX', 'static' => true, 'rank' => 240], '@'),  true],
+    ['refuse : SOA',                 R::acceptRecord(['type' => 'SOA', 'static' => true, 'rank' => 240], '@'), false],
+    ['refuse : A dynamique',         R::acceptRecord(['type' => 'A', 'static' => false, 'rank' => 240], 'pc1'), false],
+    ['accepte : NS dynamique (délégation)', R::acceptRecord(['type' => 'NS', 'static' => false, 'rank' => 130], 'externe'), true],
+    ['refuse : glue',                R::acceptRecord(['type' => 'A', 'static' => true, 'rank' => 128], 'spirou'), false],
+    ['fqdn sommet de zone',          R::fqdn('@', 'blconseils.com'),  'blconseils.com'],
+    ['fqdn hôte',                    R::fqdn('www', 'blconseils.com'), 'www.blconseils.com'],
+    ['référence stable',             R::recordRef('z.fr', 'www', 'A', '1.2.3.4') === R::recordRef('z.fr', 'www', 'A', '1.2.3.4'), true],
+    ['référence selon la valeur',    R::recordRef('z.fr', 'www', 'A', '1.2.3.4') !== R::recordRef('z.fr', 'www', 'A', '1.2.3.5'), true],
+];
+foreach ($r as [$label, $got, $expected]) {
+    $ok = ($got === $expected);
+    if (!$ok) { $fail++; }
+    printf("%-38s %s%s\n", $label, $ok ? 'OK' : 'ECHEC', $ok ? '' : '  attendu=' . json_encode($expected) . ' obtenu=' . json_encode($got));
 }
 
 echo $fail === 0 ? "\nTous les tests passent.\n" : "\n$fail test(s) en échec.\n";

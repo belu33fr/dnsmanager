@@ -7,6 +7,7 @@ class ProviderFactory
     private const PROVIDERS = [
         'ovh'   => OvhProvider::class,
         'gandi' => GandiProvider::class,
+        'windowsdns' => WindowsDnsProvider::class,
     ];
 
     public static function create(string $type, array $credentials, string $endpoint = ''): ProviderInterface

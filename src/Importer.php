@@ -210,10 +210,12 @@ class Importer
 
         if (!empty($this->domainWhitelist) && !in_array($domainName, $this->domainWhitelist, true)) return null;
 
-        $glpiDomain = $DB->request(['FROM' => 'glpi_domains', 'WHERE' => ['name' => $domainData['name'], 'is_deleted' => 0]])->current();
+        // Le domaine GLPI est cherché par nom ET par type : un domaine externe (Internet) et un domaine
+        // interne (DNS AD) peuvent porter le même nom sans se confondre.
+        $glpiDomain = $DB->request(['FROM' => 'glpi_domains', 'WHERE' => [
+            'name' => $domainData['name'], 'is_deleted' => 0, 'domaintypes_id' => $this->getInternetTypeId(),
+        ]])->current();
         if (!$glpiDomain) return null;
-
-        if ((int)($glpiDomain['domaintypes_id'] ?? 0) !== $this->getInternetTypeId()) return null;
 
         // Synchro manuelle restreinte à l'entité active : ignorer les domaines hors périmètre
         if ($this->restrictToActiveEntities && !in_array((int)$glpiDomain['entities_id'], $this->allowedEntities, true)) {
@@ -534,19 +536,15 @@ class Importer
         }
     }
 
+    /**
+     * Identifiant du type de domaine GLPI géré par ce compte : « Internet » pour OVH et Gandi,
+     * le type « DNS AD » (configurable) pour un serveur DNS Windows. (Le nom de la méthode date
+     * du temps où seul le type Internet existait.)
+     */
     private function getInternetTypeId(): int
     {
-        global $DB;
         if ($this->internetTypeId !== null) return $this->internetTypeId;
-
-        $existing = $DB->request(['FROM' => 'glpi_domaintypes', 'WHERE' => ['name' => 'Internet']])->current();
-        if ($existing) {
-            $this->internetTypeId = (int)$existing['id'];
-        } else {
-            $DB->insert('glpi_domaintypes', ['name' => 'Internet', 'comment' => 'Créé par DNSManage']);
-            $this->internetTypeId = (int)$DB->insertId();
-        }
-        return $this->internetTypeId;
+        return $this->internetTypeId = DomainTypes::idForProvider((string)($this->account['provider_type'] ?? ''));
     }
 
     private function importRecords(string $zoneRef, int $glpiDomainId): void

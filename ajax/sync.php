@@ -120,10 +120,13 @@ try {
         try {
             $providerRef = base64_decode($encodedRef);
 
-            // Vérification doublon : domaine déjà présent dans GLPI ?
+            // Vérification doublon : domaine déjà présent dans GLPI ? Cherché par nom ET par type :
+            // le domaine Internet et le domaine DNS AD de même nom sont deux domaines distincts.
+            $accountData = Account::getWithCredentials($accountId);
+            $ownTypeId   = \GlpiPlugin\Dnsmanager\DomainTypes::idForProvider((string)($accountData['account']['provider_type'] ?? ''));
             $existing = $DB->request([
                 'FROM'  => 'glpi_domains',
-                'WHERE' => ['name' => $providerRef, 'is_deleted' => 0],
+                'WHERE' => ['name' => $providerRef, 'is_deleted' => 0, 'domaintypes_id' => $ownTypeId],
             ])->current();
             if ($existing) {
                 // Domaine déjà présent - créer juste le mapping si absent

@@ -83,28 +83,34 @@ class DomainImporter
                 continue;
             }
 
-            // Chercher dans GLPI (actif)
+            $ownType = $this->getInternetTypeId();
+
+            // Chercher dans GLPI (actif), parmi les domaines du type géré par CE compte :
+            // un domaine homonyme d'un autre type géré par le plugin (Internet / DNS AD) est un
+            // domaine distinct.
             $glpiDomain = $DB->request([
                 'FROM'  => 'glpi_domains',
-                'WHERE' => ['name' => $domainData['name'], 'is_deleted' => 0],
+                'WHERE' => ['name' => $domainData['name'], 'is_deleted' => 0, 'domaintypes_id' => $ownType],
             ])->current();
+
+            // Homonyme d'un type que le plugin ne gère pas (saisi à la main) : géré par un tiers,
+            // on n'y touche pas et on ne propose pas de l'importer
+            if (!$glpiDomain && DomainTypes::hasForeignDomain($domainData['name'], $ownType)) {
+                continue;
+            }
 
             // Chercher dans GLPI (corbeille)
             $glpiDeleted = !$glpiDomain ? $DB->request([
                 'FROM'  => 'glpi_domains',
-                'WHERE' => ['name' => $domainData['name'], 'is_deleted' => 1],
+                'WHERE' => ['name' => $domainData['name'], 'is_deleted' => 1, 'domaintypes_id' => $ownType],
             ])->current() : null;
 
             if ($glpiDomain) {
-                // Vérifier le type Internet
-                if ((int)($glpiDomain['domaintypes_id'] ?? 0) === $this->getInternetTypeId()) {
-                    $result['to_sync'][] = [
-                        'domain_data'   => $domainData,
-                        'glpi_domain'   => $glpiDomain,
-                        'mapping'       => $mapped[$ref] ?? null,
-                    ];
-                }
-                // Sinon : domaine géré par un tiers → on ne touche pas
+                $result['to_sync'][] = [
+                    'domain_data'   => $domainData,
+                    'glpi_domain'   => $glpiDomain,
+                    'mapping'       => $mapped[$ref] ?? null,
+                ];
             } elseif ($glpiDeleted) {
                 $result['to_restore'][] = [
                     'domain_data'  => $domainData,
@@ -418,19 +424,11 @@ class DomainImporter
         }
     }
 
+    /** Type de domaine GLPI géré par ce compte (Internet, ou DNS AD pour un serveur Windows) */
     private function getInternetTypeId(): int
     {
-        global $DB;
         if ($this->internetTypeId !== null) return $this->internetTypeId;
-
-        $existing = $DB->request(['FROM' => 'glpi_domaintypes', 'WHERE' => ['name' => 'Internet']])->current();
-        if ($existing) {
-            $this->internetTypeId = (int)$existing['id'];
-        } else {
-            $DB->insert('glpi_domaintypes', ['name' => 'Internet', 'comment' => 'Créé par DNSManage']);
-            $this->internetTypeId = (int)$DB->insertId();
-        }
-        return $this->internetTypeId;
+        return $this->internetTypeId = DomainTypes::idForProvider((string)($this->account['provider_type'] ?? ''));
     }
 
     private function updateGroups(int $glpiDomainId): void

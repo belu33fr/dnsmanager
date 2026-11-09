@@ -543,3 +543,15 @@ msgstr ""
 
 msgid "Hébergeurs"
 msgstr ""
+
+msgid "Extensions de domaine propres à votre réseau, acceptées en plus des extensions Internet pour les zones d'un serveur DNS Windows (ex. local;interne;lan). Une zone dont l'extension n'est ni Internet ni listée ici est ignorée."
+msgstr ""
+
+msgid "Extensions internes (serveur DNS Windows, séparées par ;)"
+msgstr ""
+
+msgid "Type de domaine GLPI attribué aux zones d'un serveur DNS Windows / Active Directory, pour les distinguer des domaines Internet de même nom (créé automatiquement s'il n'existe pas)."
+msgstr ""
+
+msgid "Type de domaine des zones Windows / AD"
+msgstr ""

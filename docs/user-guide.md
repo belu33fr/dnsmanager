@@ -136,3 +136,30 @@ Dans le bloc **"Administratif Domaine"**, chaque contact peut être verrouillé 
 **Domaines non détectés (Gandi)** : seuls les domaines utilisant Gandi LiveDNS sont synchronisés.
 
 **Records en doublon** : videz le cache dans **Configuration → Plugins → DNS Hébergeurs → Vider le cache**.
+
+## Serveur DNS Windows (Active Directory)
+
+Type de fournisseur **Windows DNS (Active Directory)** : remonte, en **lecture seule**, les zones DNS
+intégrées à l'AD et leurs enregistrements, par LDAP. L'extension PHP LDAP est requise (GLPI l'exige déjà).
+
+**Compte** : créez un compte du domaine **en lecture seule** (aucun droit d'écriture n'est nécessaire) et
+renseignez dans la fiche : le serveur (`ldaps://contrôleur.domaine.local:636` recommandé), le compte
+(`utilisateur@domaine.local`), son mot de passe. La base LDAP est détectée automatiquement.
+Le bouton **Tester la connexion** affiche les zones trouvées, celles qui seront importées et celles qui sont
+ignorées (avec la raison) : c'est le moyen de vérifier la configuration avant toute importation.
+
+**Zones importées** : les zones dont l'extension est une extension Internet (`.com`, `.fr`…) ou une extension
+interne déclarée dans la configuration du plugin (*Extensions internes*, par défaut
+`local;internal;interne;lan;corp;home;intranet;private`). Sont toujours ignorées : zones inverses (`.arpa`),
+zones techniques (`_msdcs…`, `RootDNSServers`, `TrustAnchors`) et zones sans extension.
+Seules les zones intégrées à l'AD sont visibles par LDAP.
+
+**Enregistrements importés** : A, AAAA, CNAME, MX, TXT, SRV, NS, PTR. Ne remontent pas : le SOA, les
+entrées « glue », les enregistrements **dynamiques** de type A/AAAA/PTR (postes qui s'inscrivent seuls), et, dans
+la zone du domaine AD lui-même, les enregistrements techniques (`_msdcs`, `_sites`, `_tcp`, `_udp`).
+
+**Type de domaine** : les domaines GLPI créés ont le type **DNS AD** (nom modifiable dans la configuration du
+plugin), distinct du type **Internet** des fournisseurs Internet. Un domaine Internet et un domaine DNS AD de même
+nom (DNS externe et DNS interne) sont donc deux domaines GLPI distincts, chacun avec son propre compte et ses
+propres enregistrements. Cela suppose qu'aucune règle d'unicité sur le nom des domaines ne soit configurée dans
+GLPI (Configuration → Unicité des champs).

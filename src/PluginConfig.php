@@ -36,7 +36,7 @@ class PluginConfig extends CommonDBTM
     public static function save(array $input): void
     {
         global $DB;
-        $allowed = ['entity_labels', 'entity_children_labels', 'contact_account_type', 'domain_lock_timeout'];
+        $allowed = ['entity_labels', 'entity_children_labels', 'contact_account_type', 'domain_lock_timeout', 'windowsdns_internal_tlds', 'windowsdns_domain_type'];
         foreach ($allowed as $key) {
             if (!isset($input[$key])) continue;
             $existing = $DB->request([
@@ -70,6 +70,20 @@ class PluginConfig extends CommonDBTM
      * filtrer les dropdowns Administrateur/Technicien/Financier et pour la
      * création automatique de comptes contact depuis le registrar.
      */
+    /** Extensions internes acceptées pour les zones d'un serveur DNS Windows (séparées par ;) */
+    public static function getWindowsInternalTlds(): string
+    {
+        $val = trim((string)self::getConfig('windowsdns_internal_tlds', WindowsDnsRules::DEFAULT_INTERNAL_TLDS));
+        return $val !== '' ? $val : WindowsDnsRules::DEFAULT_INTERNAL_TLDS;
+    }
+
+    /** Nom du type de domaine GLPI attribué aux zones d'un serveur DNS Windows / Active Directory */
+    public static function getAdDomainTypeName(): string
+    {
+        $val = trim((string)self::getConfig('windowsdns_domain_type', 'DNS AD'));
+        return $val !== '' ? $val : 'DNS AD';
+    }
+
     public static function getContactAccountType(): string
     {
         $val = trim(self::getConfig('contact_account_type', 'Fournisseur'));
@@ -153,6 +167,38 @@ class PluginConfig extends CommonDBTM
             echo "<input type='text' name='contact_account_type' class='form-control' value='" . htmlspecialchars($contactAccountType) . "'>";
         } else {
             echo "<span class='form-control-plaintext'>" . htmlspecialchars($contactAccountType) . "</span>";
+        }
+        echo "</div></div>";
+
+        // Serveur DNS Windows : extensions internes acceptées
+        $winTlds = self::getWindowsInternalTlds();
+        $helpWinTlds = __('Extensions de domaine propres à votre réseau, acceptées en plus des extensions Internet pour les zones d\'un serveur DNS Windows (ex. local;interne;lan). Une zone dont l\'extension n\'est ni Internet ni listée ici est ignorée.', 'dnsmanager');
+        echo "<div class='mb-3 row'>";
+        echo "<label class='col-xxl-4 col-form-label'>";
+        echo __('Extensions internes (serveur DNS Windows, séparées par ;)', 'dnsmanager');
+        echo " <i class='ti ti-info-circle text-muted' data-bs-toggle='tooltip' title='" . htmlspecialchars($helpWinTlds) . "'></i>";
+        echo "</label>";
+        echo "<div class='col-xxl-8'>";
+        if ($canedit) {
+            echo "<input type='text' name='windowsdns_internal_tlds' class='form-control' value='" . htmlspecialchars($winTlds) . "'>";
+        } else {
+            echo "<span class='form-control-plaintext'>" . htmlspecialchars($winTlds) . "</span>";
+        }
+        echo "</div></div>";
+
+        // Serveur DNS Windows : type de domaine GLPI
+        $adType = self::getAdDomainTypeName();
+        $helpAdType = __('Type de domaine GLPI attribué aux zones d\'un serveur DNS Windows / Active Directory, pour les distinguer des domaines Internet de même nom (créé automatiquement s\'il n\'existe pas).', 'dnsmanager');
+        echo "<div class='mb-3 row'>";
+        echo "<label class='col-xxl-4 col-form-label'>";
+        echo __('Type de domaine des zones Windows / AD', 'dnsmanager');
+        echo " <i class='ti ti-info-circle text-muted' data-bs-toggle='tooltip' title='" . htmlspecialchars($helpAdType) . "'></i>";
+        echo "</label>";
+        echo "<div class='col-xxl-8'>";
+        if ($canedit) {
+            echo "<input type='text' name='windowsdns_domain_type' class='form-control' value='" . htmlspecialchars($adType) . "'>";
+        } else {
+            echo "<span class='form-control-plaintext'>" . htmlspecialchars($adType) . "</span>";
         }
         echo "</div></div>";
 
