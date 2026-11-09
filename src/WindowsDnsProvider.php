@@ -414,7 +414,20 @@ class WindowsDnsProvider implements ProviderInterface
         $prevCert    = null;
         $certChanged = false;
         if (!$this->verifyCert && defined('LDAP_OPT_X_TLS_REQUIRE_CERT')) {
-            @ldap_get_option(null, LDAP_OPT_X_TLS_REQUIRE_CERT, $prevCert);
+            // ldap_get_option() n'accepte PAS null (contrairement à ldap_set_option) : pour lire la
+            // valeur globale actuelle, on passe par une connexion d'essai (ldap_connect ne se connecte
+            // pas, il reprend simplement les réglages globaux).
+            try {
+                $probe = @ldap_connect('ldap://localhost');
+                if ($probe !== false) {
+                    $val = null;
+                    if (@ldap_get_option($probe, LDAP_OPT_X_TLS_REQUIRE_CERT, $val)) {
+                        $prevCert = $val;
+                    }
+                }
+            } catch (\Throwable $e) {
+                $prevCert = null;   // valeur inconnue : on rétablira la valeur par défaut d'OpenLDAP
+            }
             ldap_set_option(null, LDAP_OPT_X_TLS_REQUIRE_CERT, LDAP_OPT_X_TLS_NEVER);
             $certChanged = true;
         }
@@ -460,8 +473,12 @@ class WindowsDnsProvider implements ProviderInterface
                 }
             }
         } finally {
-            if ($certChanged && $prevCert !== null) {
-                ldap_set_option(null, LDAP_OPT_X_TLS_REQUIRE_CERT, $prevCert);
+            if ($certChanged) {
+                try {
+                    ldap_set_option(null, LDAP_OPT_X_TLS_REQUIRE_CERT, $prevCert ?? LDAP_OPT_X_TLS_DEMAND);
+                } catch (\Throwable $e) {
+                    // rien à faire : le réglage global reste celui qu'il était
+                }
             }
         }
         return $this->link = $link;
