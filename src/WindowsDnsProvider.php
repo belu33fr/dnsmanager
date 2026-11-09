@@ -341,31 +341,45 @@ class WindowsDnsProvider implements ProviderInterface
         }
         fclose($sock);
 
+        // Désactiver la vérification du certificat est une option GLOBALE du client LDAP du
+        // processus PHP : on la rétablit juste après la liaison, pour qu'elle ne s'applique pas
+        // aux autres connexions LDAP de GLPI (authentification, synchronisation d'utilisateurs).
+        // La connexion déjà établie conserve son propre contexte TLS.
+        $prevCert    = null;
+        $certChanged = false;
         if (!$this->verifyCert && defined('LDAP_OPT_X_TLS_REQUIRE_CERT')) {
+            @ldap_get_option(null, LDAP_OPT_X_TLS_REQUIRE_CERT, $prevCert);
             ldap_set_option(null, LDAP_OPT_X_TLS_REQUIRE_CERT, LDAP_OPT_X_TLS_NEVER);
+            $certChanged = true;
         }
 
-        $link = @ldap_connect($this->uri);
-        if ($link === false) {
-            throw new \RuntimeException('URI LDAP invalide : ' . $this->uri);
-        }
-        ldap_set_option($link, LDAP_OPT_PROTOCOL_VERSION, 3);
-        ldap_set_option($link, LDAP_OPT_REFERRALS, 0);
-        ldap_set_option($link, LDAP_OPT_NETWORK_TIMEOUT, 10);
-
-        if (!@ldap_bind($link, $this->bindDn, $this->password)) {
-            $code = ldap_errno($link);
-            $hint = '';
-            if ($code === -1 && $scheme === 'ldaps' && $this->verifyCert) {
-                $hint = ' Le port répond : le certificat du serveur n\'est probablement pas reconnu par cette machine. Pour tester, mettez « Vérifier le certificat » à non ; pour une solution durable, installez l\'autorité de certification interne sur le serveur GLPI.';
-            } elseif ($code === -1) {
-                $hint = ' Le port répond mais la connexion LDAP échoue : vérifiez que le schéma (ldap ou ldaps) correspond au port.';
-            } elseif ($code === 49) {
-                $hint = ' Identifiants refusés : vérifiez le compte (utilisateur@domaine.local) et le mot de passe.';
-            } elseif ($code === 8 || $code === 13) {
-                $hint = ' Le contrôleur de domaine exige une connexion chiffrée : utilisez ldaps://.';
+        try {
+            $link = @ldap_connect($this->uri);
+            if ($link === false) {
+                throw new \RuntimeException('URI LDAP invalide : ' . $this->uri);
             }
-            throw new \RuntimeException('Connexion LDAP refusée : ' . ldap_error($link) . ' (code ' . $code . ').' . $hint);
+            ldap_set_option($link, LDAP_OPT_PROTOCOL_VERSION, 3);
+            ldap_set_option($link, LDAP_OPT_REFERRALS, 0);
+            ldap_set_option($link, LDAP_OPT_NETWORK_TIMEOUT, 10);
+
+            if (!@ldap_bind($link, $this->bindDn, $this->password)) {
+                $code = ldap_errno($link);
+                $hint = '';
+                if ($code === -1 && $scheme === 'ldaps' && $this->verifyCert) {
+                    $hint = ' Le port répond : le certificat du serveur n\'est probablement pas reconnu par cette machine. Pour tester, mettez « Vérifier le certificat » à non ; pour une solution durable, installez l\'autorité de certification interne sur le serveur GLPI.';
+                } elseif ($code === -1) {
+                    $hint = ' Le port répond mais la connexion LDAP échoue : vérifiez que le schéma (ldap ou ldaps) correspond au port.';
+                } elseif ($code === 49) {
+                    $hint = ' Identifiants refusés : vérifiez le compte (utilisateur@domaine.local) et le mot de passe.';
+                } elseif ($code === 8 || $code === 13) {
+                    $hint = ' Le contrôleur de domaine exige une connexion chiffrée : utilisez ldaps://.';
+                }
+                throw new \RuntimeException('Connexion LDAP refusée : ' . ldap_error($link) . ' (code ' . $code . ').' . $hint);
+            }
+        } finally {
+            if ($certChanged && $prevCert !== null) {
+                ldap_set_option(null, LDAP_OPT_X_TLS_REQUIRE_CERT, $prevCert);
+            }
         }
         return $this->link = $link;
     }
