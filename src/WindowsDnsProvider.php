@@ -119,6 +119,11 @@ class WindowsDnsProvider implements ProviderInterface
 
     public function testConnection(): bool
     {
+        return $this->guard(fn(): bool => $this->doTestConnection());
+    }
+
+    private function doTestConnection(): bool
+    {
         $tlds = WindowsDnsRules::parseTldList(PluginConfig::getWindowsInternalTlds());
 
         $this->connect();
@@ -153,6 +158,36 @@ class WindowsDnsProvider implements ProviderInterface
 
     public function getDiagnosticMessage(): string
     {
+        try {
+            return $this->buildDiagnosticMessage();
+        } catch (\Throwable $e) {
+            return 'Diagnostic indisponible (' . get_class($e) . ') : ' . $e->getMessage() . ' [ligne ' . $e->getLine() . ']';
+        }
+    }
+
+    /**
+     * Les erreurs PHP "graves" (TypeError...) ne sont pas des exceptions ordinaires : sans cette
+     * conversion, elles produisent une erreur HTTP 500 muette dans l'interface. On les transforme
+     * en message lisible, avec leur origine.
+     */
+    private function guard(callable $fn)
+    {
+        try {
+            return $fn();
+        } catch (\RuntimeException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            throw new \RuntimeException(
+                'Erreur interne du fournisseur Windows DNS (' . get_class($e) . ') : ' . $e->getMessage()
+                . ' [' . basename($e->getFile()) . ':' . $e->getLine() . ']',
+                0,
+                $e
+            );
+        }
+    }
+
+    private function buildDiagnosticMessage(): string
+    {
         if (empty($this->lastDiagnostic)) {
             return '';
         }
@@ -186,6 +221,11 @@ class WindowsDnsProvider implements ProviderInterface
 
     public function listDomains(): array
     {
+        return $this->guard(fn(): array => $this->doListDomains());
+    }
+
+    private function doListDomains(): array
+    {
         $tlds = WindowsDnsRules::parseTldList(PluginConfig::getWindowsInternalTlds());
         $out  = [];
         foreach ($this->loadZones() as $z) {
@@ -204,6 +244,11 @@ class WindowsDnsProvider implements ProviderInterface
     }
 
     public function listRecords(string $zoneRef): array
+    {
+        return $this->guard(fn(): array => $this->doListRecords($zoneRef));
+    }
+
+    private function doListRecords(string $zoneRef): array
     {
         $zone   = $this->findZone($zoneRef);
         $link   = $this->connect();
@@ -399,13 +444,19 @@ class WindowsDnsProvider implements ProviderInterface
             }
 
             // Identité réellement obtenue (Who Am I) : vide = connexion anonyme
+            $who = null;
             if (function_exists('ldap_exop_whoami')) {
-                $who = @ldap_exop_whoami($link);
-                if (is_string($who)) {
-                    $this->whoami = trim($who);
-                    if ($this->whoami === '') {
-                        throw new \RuntimeException('La liaison a réussi mais le serveur la traite comme anonyme : vérifiez le compte et le mot de passe.');
-                    }
+                try {
+                    $res = @ldap_exop_whoami($link);
+                    $who = is_string($res) ? trim($res) : null;
+                } catch (\Throwable $e) {
+                    $who = null;   // requête non prise en charge : sans importance
+                }
+            }
+            if ($who !== null) {
+                $this->whoami = $who;
+                if ($who === '') {
+                    throw new \RuntimeException('La liaison a réussi mais le serveur la traite comme anonyme : vérifiez le compte et le mot de passe.');
                 }
             }
         } finally {
