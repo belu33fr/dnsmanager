@@ -35,6 +35,12 @@ class WindowsDnsProvider implements ProviderInterface
 
     private array $lastDiagnostic = [];
 
+    /** Identité effective après la liaison (Who Am I) ; vide si le serveur ne la fournit pas */
+    private string $whoami = '';
+
+    /** Résultat de la lecture de chaque conteneur de zones (diagnostic) */
+    private array $containerStatus = [];
+
     public function __construct(array $credentials, string $endpoint = '')
     {
         $this->uri        = trim((string)($credentials['ldap_uri'] ?? ''));
@@ -136,6 +142,8 @@ class WindowsDnsProvider implements ProviderInterface
         $this->lastDiagnostic = [
             'base'    => $this->rootDn,
             'domain'  => $this->adDomain,
+            'who'     => $this->whoami,
+            'status'  => $this->containerStatus,
             'counts'  => $counts,
             'ok'      => $ok,
             'ko'      => $ko,
@@ -156,6 +164,14 @@ class WindowsDnsProvider implements ProviderInterface
         }
         $lines   = [];
         $lines[] = 'Base : ' . $d['base'] . ' — domaine AD : ' . $d['domain'];
+        if ($d['who'] !== '') {
+            $lines[] = 'Connecté en tant que : ' . $d['who'];
+        }
+        foreach ($d['status'] as $label => $st) {
+            $lines[] = '  ' . $label . ' : ' . ($st['error'] === null
+                ? $st['count'] . ' zone(s)'
+                : 'illisible — ' . $st['error'] . (strpos($st['error'], 'code 50') !== false ? ' : le compte n\'a pas le droit de lire cette partition' : ''));
+        }
         $lines[] = 'Zones trouvées : ' . (count($d['ok']) + count($d['ko'])) . ($where ? ' (' . implode(', ', $where) . ')' : '');
         $lines[] = 'Zones importables (' . count($d['ok']) . ') : ' . ($d['ok'] ? implode(', ', array_slice($d['ok'], 0, 40)) : 'aucune');
         if ($d['ko']) {
@@ -321,6 +337,11 @@ class WindowsDnsProvider implements ProviderInterface
         if ($this->uri === '' || $this->bindDn === '') {
             throw new \RuntimeException('Le serveur LDAP et le compte de lecture sont obligatoires.');
         }
+        if ($this->password === '') {
+            // Active Directory traite une liaison sans mot de passe comme une connexion ANONYME :
+            // elle "réussit" mais ne permet pas de lire les zones DNS.
+            throw new \RuntimeException('Le mot de passe du compte de lecture est obligatoire (une liaison sans mot de passe est anonyme et ne voit aucune zone).');
+        }
         $parts  = parse_url($this->uri);
         $scheme = strtolower((string)($parts['scheme'] ?? ''));
         $host   = (string)($parts['host'] ?? '');
@@ -375,6 +396,17 @@ class WindowsDnsProvider implements ProviderInterface
                     $hint = ' Le contrôleur de domaine exige une connexion chiffrée : utilisez ldaps://.';
                 }
                 throw new \RuntimeException('Connexion LDAP refusée : ' . ldap_error($link) . ' (code ' . $code . ').' . $hint);
+            }
+
+            // Identité réellement obtenue (Who Am I) : vide = connexion anonyme
+            if (function_exists('ldap_exop_whoami')) {
+                $who = @ldap_exop_whoami($link);
+                if (is_string($who)) {
+                    $this->whoami = trim($who);
+                    if ($this->whoami === '') {
+                        throw new \RuntimeException('La liaison a réussi mais le serveur la traite comme anonyme : vérifiez le compte et le mot de passe.');
+                    }
+                }
             }
         } finally {
             if ($certChanged && $prevCert !== null) {
@@ -447,9 +479,13 @@ class WindowsDnsProvider implements ProviderInterface
         foreach ($this->containers() as $label => $container) {
             $res = @ldap_list($link, $container, '(objectClass=dnsZone)', ['name']);
             if ($res === false) {
-                continue;   // conteneur absent ou illisible : sans importance
+                // Conteneur absent (code 32) ou illisible (code 50 : droits insuffisants) : on le note
+                // pour le diagnostic, et on passe au suivant.
+                $this->containerStatus[$label] = ['dn' => $container, 'error' => ldap_error($link) . ' (code ' . ldap_errno($link) . ')', 'count' => 0];
+                continue;
             }
             $entries = ldap_get_entries($link, $res);
+            $this->containerStatus[$label] = ['dn' => $container, 'error' => null, 'count' => (int)$entries['count']];
             for ($i = 0; $i < (int)$entries['count']; $i++) {
                 $name = $entries[$i]['name'][0] ?? null;
                 if ($name === null) {
