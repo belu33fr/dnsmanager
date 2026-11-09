@@ -203,9 +203,24 @@ class WindowsDnsProvider implements ProviderInterface
             $lines[] = 'Connecté en tant que : ' . $d['who'];
         }
         foreach ($d['status'] as $label => $st) {
+            $extra = '';
+            if (isset($st['probe'])) {
+                $extra = ' — conteneur ' . ($st['probe']['readable'] ? 'lisible' : 'illisible')
+                    . ', entrées visibles (tous types) : ' . ($st['probe']['children'] === null ? 'erreur' : $st['probe']['children']);
+            }
             $lines[] = '  ' . $label . ' : ' . ($st['error'] === null
-                ? $st['count'] . ' zone(s)'
+                ? $st['count'] . ' zone(s)' . $extra
                 : 'illisible — ' . $st['error'] . (strpos($st['error'], 'code 50') !== false ? ' : le compte n\'a pas le droit de lire cette partition' : ''));
+        }
+        $allEmpty = $d['status'] !== [];
+        foreach ($d['status'] as $st) {
+            if ($st['error'] === null && $st['count'] === 0 && isset($st['probe']) && ($st['probe']['children'] ?? 0) === 0) {
+                continue;
+            }
+            $allEmpty = false;
+        }
+        if ($allEmpty) {
+            $lines[] = 'Aucune entrée n\'est visible dans les conteneurs DNS : le compte n\'a très probablement pas le droit de LISTER leur contenu. Voir « Droits du compte de lecture » dans le guide utilisateur (délégation en lecture seule ; ne PAS utiliser DnsAdmins).';
         }
         $lines[] = 'Zones trouvées : ' . (count($d['ok']) + count($d['ko'])) . ($where ? ' (' . implode(', ', $where) . ')' : '');
         $lines[] = 'Zones importables (' . count($d['ok']) . ') : ' . ($d['ok'] ? implode(', ', array_slice($d['ok'], 0, 40)) : 'aucune');
@@ -554,6 +569,9 @@ class WindowsDnsProvider implements ProviderInterface
             }
             $entries = ldap_get_entries($link, $res);
             $this->containerStatus[$label] = ['dn' => $container, 'error' => null, 'count' => (int)$entries['count']];
+            if ((int)$entries['count'] === 0) {
+                $this->containerStatus[$label]['probe'] = $this->probeContainer($link, $container);
+            }
             for ($i = 0; $i < (int)$entries['count']; $i++) {
                 $name = $entries[$i]['name'][0] ?? null;
                 if ($name === null) {
@@ -566,6 +584,24 @@ class WindowsDnsProvider implements ProviderInterface
             }
         }
         return $this->zones = $zones;
+    }
+
+    /**
+     * Conteneur sans zone : distingue "illisible" / "lisible mais contenu invisible" / "vide",
+     * pour reconnaître un droit de lecture manquant (Active Directory masque alors les objets
+     * sans renvoyer d'erreur).
+     *
+     * @param \LDAP\Connection|resource $link
+     */
+    private function probeContainer($link, string $dn): array
+    {
+        $read     = @ldap_read($link, $dn, '(objectClass=*)', ['objectClass']);
+        $readable = ($read !== false && ldap_count_entries($link, $read) > 0);
+        $list     = @ldap_list($link, $dn, '(objectClass=*)', ['name']);
+        return [
+            'readable' => $readable,
+            'children' => $list === false ? null : (int)ldap_count_entries($link, $list),
+        ];
     }
 
     /** @return array{name:string, dn:string, container:string} */

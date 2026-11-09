@@ -163,3 +163,17 @@ plugin), distinct du type **Internet** des fournisseurs Internet. Un domaine Int
 nom (DNS externe et DNS interne) sont donc deux domaines GLPI distincts, chacun avec son propre compte et ses
 propres enregistrements. Cela suppose qu'aucune règle d'unicité sur le nom des domaines ne soit configurée dans
 GLPI (Configuration → Unicité des champs).
+
+**Droits du compte de lecture (serveur DNS Windows)** : un compte du domaine peut s'authentifier et lire la
+base de l'annuaire sans pouvoir **lister** le contenu des conteneurs DNS ; Active Directory masque alors les
+objets sans renvoyer d'erreur (le test de connexion affiche « 0 zone » et « entrées visibles : 0 »). Il faut
+alors déléguer la **lecture seule** sur les conteneurs concernés, depuis un contrôleur de domaine :
+
+```
+dsacls "CN=MicrosoftDNS,CN=System,DC=domaine,DC=local" /G "DOMAINE\compte:GR" /I:T
+dsacls "CN=MicrosoftDNS,DC=DomainDnsZones,DC=domaine,DC=local" /G "DOMAINE\compte:GR" /I:T
+dsacls "CN=MicrosoftDNS,DC=ForestDnsZones,DC=domaine,DC=local" /G "DOMAINE\compte:GR" /I:T
+```
+
+(`GR` = lecture générique ; vérifiez la syntaxe avec `dsacls /?` et adaptez les noms.) **N'utilisez pas le groupe
+DnsAdmins** : il donne bien plus que la lecture et constitue un chemin connu d'élévation de privilèges.
