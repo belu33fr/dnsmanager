@@ -20,8 +20,14 @@ if (!$accountId) {
 // Traitement du formulaire d'import
 if (isset($_POST['action']) && $_POST['action'] === 'import') {
 
-    $domainImporter = new DomainImporter($accountId, true);
-    $analysis       = $domainImporter->analyze();
+    try {
+        $domainImporter = new DomainImporter($accountId, true);
+        $analysis       = $domainImporter->analyze();
+    } catch (\Throwable $e) {
+        Session::addMessageAfterRedirect(htmlspecialchars($e->getMessage()), false, ERROR);
+        Html::redirect(Plugin::getWebDir('dnsmanager') . '/front/account.form.php?id=' . $accountId);
+        exit;
+    }
     $errors         = [];
     $imported       = 0;
     $restored       = 0;
@@ -92,16 +98,18 @@ if (isset($_POST['action']) && $_POST['action'] === 'import') {
 }
 
 // Affichage de la page d'import (GET)
-Html::header(
-    __('Import de domaines DNS', 'dnsmanager'),
-    $_SERVER['PHP_SELF'],
-    Menu::MENU_SECTOR,
-    'account'
-);
-
-$domainImporter = new DomainImporter($accountId, true);
-$analysis       = $domainImporter->analyze();
-$entities       = DomainImporter::getImportableEntities();
+// Analyse AVANT l'en-tête de la page : si elle échoue (accès au fournisseur, configuration), le message
+// s'affiche sur la fiche du compte. Une fois l'en-tête écrit, GLPI ne peut plus afficher le message
+// et retombe sur son erreur générique « Une erreur est survenue ».
+try {
+    $domainImporter = new DomainImporter($accountId, true);
+    $analysis       = $domainImporter->analyze();
+    $entities       = DomainImporter::getImportableEntities();
+} catch (\Throwable $e) {
+    Session::addMessageAfterRedirect(htmlspecialchars($e->getMessage()), false, ERROR);
+    Html::redirect(Plugin::getWebDir('dnsmanager') . '/front/account.form.php?id=' . $accountId);
+    exit;
+}
 
 // Si rien à faire → retourner à la fiche avec un message. La recherche ne synchronise
 // PAS les enregistrements (c'est le rôle de "Sync rapide") : une version précédente
@@ -118,6 +126,13 @@ if (empty($analysis['to_import']) && empty($analysis['to_restore']) && empty($an
     Html::redirect(Plugin::getWebDir('dnsmanager') . '/front/account.form.php?id=' . $accountId);
     exit;
 }
+
+Html::header(
+    __('Import de domaines DNS', 'dnsmanager'),
+    $_SERVER['PHP_SELF'],
+    Menu::MENU_SECTOR,
+    'account'
+);
 
 // Générer les dropdowns Entity filtrés selon la config
 $importableEntities = \GlpiPlugin\Dnsmanager\DomainImporter::getImportableEntities();
