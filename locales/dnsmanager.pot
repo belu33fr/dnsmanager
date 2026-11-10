@@ -669,3 +669,6 @@ msgstr ""
 
 msgid "Type de provider"
 msgstr ""
+
+msgid "Hébergeur"
+msgstr ""

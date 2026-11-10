@@ -670,3 +670,6 @@ msgstr "Extension"
 
 msgid "Type de provider"
 msgstr "Provider type"
+
+msgid "Hébergeur"
+msgstr "Provider"
