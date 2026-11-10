@@ -24,15 +24,36 @@ final class DomainTypes
     public static function idForProvider(string $providerType): int
     {
         $configured = self::configuredId($providerType);
-        if ($configured > 0 && self::exists($configured)) {
-            return $configured;
+        $id = ($configured > 0 && self::exists($configured))
+            ? $configured
+            : self::idByName(self::nameForProvider($providerType), true);
+
+        // Garde-fou : les types Internet et DNS AD doivent être distincts, sinon un domaine externe et un
+        // domaine interne de même nom se confondraient.
+        $other = $providerType === 'windowsdns' ? 'ovh' : 'windowsdns';
+        $otherId = self::effectiveId($other, self::configuredId($other));
+        if ($otherId > 0 && $otherId === $id) {
+            throw new \RuntimeException('Les types de domaine Internet et DNS AD sont identiques dans la configuration du plugin : corrigez-les avant d\'importer ou de synchroniser.');
         }
-        return self::idByName(self::nameForProvider($providerType), true);
+        return $id;
     }
 
     private static function configuredId(string $providerType): int
     {
         return $providerType === 'windowsdns' ? PluginConfig::getAdDomainTypeId() : PluginConfig::getInternetDomainTypeId();
+    }
+
+    /**
+     * Identifiant EFFECTIF du type d'un fournisseur pour un réglage donné : le type choisi s'il
+     * existe, sinon le type par défaut (« Internet » / « DNS AD ») s'il existe déjà, sinon 0.
+     * Ne crée rien. Sert à comparer ce qui sera réellement utilisé, valeur par défaut comprise.
+     */
+    public static function effectiveId(string $providerType, int $configured): int
+    {
+        if ($configured > 0 && self::exists($configured)) {
+            return $configured;
+        }
+        return self::idByName(self::nameForProvider($providerType), false);
     }
 
     public static function exists(int $id): bool
@@ -60,10 +81,7 @@ final class DomainTypes
     {
         $ids = [];
         foreach (['ovh', 'windowsdns'] as $provider) {   // 'ovh' : tout fournisseur Internet
-            $id = self::configuredId($provider);
-            if ($id <= 0 || !self::exists($id)) {
-                $id = self::idByName(self::nameForProvider($provider), false);
-            }
+            $id = self::effectiveId($provider, self::configuredId($provider));
             if ($id > 0) {
                 $ids[$id] = $id;
             }

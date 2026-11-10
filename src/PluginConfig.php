@@ -38,8 +38,11 @@ class PluginConfig extends CommonDBTM
         global $DB;
         // Les types de domaine Internet et DNS AD doivent rester distincts : sinon un domaine externe et
         // un domaine interne de même nom ne se distingueraient plus.
-        $net = (int)($input['internet_domain_type_id'] ?? 0);
-        $ad  = (int)($input['windowsdns_domain_type_id'] ?? 0);
+        // La comparaison porte sur les types EFFECTIVEMENT utilisés, valeur par défaut comprise
+        // (« par défaut » côté Windows vaut « DNS AD ») : comparer les seuls choix explicites
+        // laisserait passer, par exemple, « DNS AD » en type Internet avec le défaut Windows.
+        $net = DomainTypes::effectiveId('ovh', (int)($input['internet_domain_type_id'] ?? self::getInternetDomainTypeId()));
+        $ad  = DomainTypes::effectiveId('windowsdns', (int)($input['windowsdns_domain_type_id'] ?? self::getAdDomainTypeId()));
         if ($net > 0 && $net === $ad) {
             \Session::addMessageAfterRedirect(__('Les types de domaine Internet et DNS AD doivent être différents : ces deux réglages n\'ont pas été modifiés.', 'dnsmanager'), false, ERROR);
             unset($input['internet_domain_type_id'], $input['windowsdns_domain_type_id']);
