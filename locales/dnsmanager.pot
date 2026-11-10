@@ -555,3 +555,21 @@ msgstr ""
 
 msgid "Type de domaine des zones Windows / AD"
 msgstr ""
+
+msgid "Les types de domaine Internet et DNS AD doivent être différents : ces deux réglages n'ont pas été modifiés."
+msgstr ""
+
+msgid "Par défaut (« DNS AD »)"
+msgstr ""
+
+msgid "Par défaut (« Internet »)"
+msgstr ""
+
+msgid "Type de domaine GLPI attribué aux domaines des fournisseurs Internet (OVH, Gandi). Laissé vide : le type « Internet », créé automatiquement s'il n'existe pas. Le « + » permet d'en créer un."
+msgstr ""
+
+msgid "Type de domaine GLPI attribué aux zones d'un serveur DNS Windows / Active Directory, pour les distinguer des domaines Internet de même nom. Laissé vide : le type « DNS AD », créé automatiquement s'il n'existe pas. Le « + » permet d'en créer un. Ce type doit être différent de celui des domaines Internet."
+msgstr ""
+
+msgid "Type de domaine des domaines Internet"
+msgstr ""

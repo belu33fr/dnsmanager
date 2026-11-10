@@ -36,7 +36,16 @@ class PluginConfig extends CommonDBTM
     public static function save(array $input): void
     {
         global $DB;
-        $allowed = ['entity_labels', 'entity_children_labels', 'contact_account_type', 'domain_lock_timeout', 'windowsdns_internal_tlds', 'windowsdns_domain_type'];
+        // Les types de domaine Internet et DNS AD doivent rester distincts : sinon un domaine externe et
+        // un domaine interne de même nom ne se distingueraient plus.
+        $net = (int)($input['internet_domain_type_id'] ?? 0);
+        $ad  = (int)($input['windowsdns_domain_type_id'] ?? 0);
+        if ($net > 0 && $net === $ad) {
+            \Session::addMessageAfterRedirect(__('Les types de domaine Internet et DNS AD doivent être différents : ces deux réglages n\'ont pas été modifiés.', 'dnsmanager'), false, ERROR);
+            unset($input['internet_domain_type_id'], $input['windowsdns_domain_type_id']);
+        }
+
+        $allowed = ['entity_labels', 'entity_children_labels', 'contact_account_type', 'domain_lock_timeout', 'windowsdns_internal_tlds', 'windowsdns_domain_type', 'windowsdns_domain_type_id', 'internet_domain_type_id'];
         foreach ($allowed as $key) {
             if (!isset($input[$key])) continue;
             $existing = $DB->request([
@@ -77,7 +86,19 @@ class PluginConfig extends CommonDBTM
         return $val !== '' ? $val : WindowsDnsRules::DEFAULT_INTERNAL_TLDS;
     }
 
-    /** Nom du type de domaine GLPI attribué aux zones d'un serveur DNS Windows / Active Directory */
+    /** Type de domaine GLPI (identifiant) des domaines Internet ; 0 = non réglé (défaut « Internet ») */
+    public static function getInternetDomainTypeId(): int
+    {
+        return max(0, (int)self::getConfig('internet_domain_type_id', 0));
+    }
+
+    /** Type de domaine GLPI (identifiant) des zones Windows / AD ; 0 = non réglé (défaut « DNS AD ») */
+    public static function getAdDomainTypeId(): int
+    {
+        return max(0, (int)self::getConfig('windowsdns_domain_type_id', 0));
+    }
+
+    /** Nom du type de domaine GLPI par défaut des zones d'un serveur DNS Windows / Active Directory */
     public static function getAdDomainTypeName(): string
     {
         $val = trim((string)self::getConfig('windowsdns_domain_type', 'DNS AD'));
@@ -186,21 +207,21 @@ class PluginConfig extends CommonDBTM
         }
         echo "</div></div>";
 
-        // Serveur DNS Windows : type de domaine GLPI
-        $adType = self::getAdDomainTypeName();
-        $helpAdType = __('Type de domaine GLPI attribué aux zones d\'un serveur DNS Windows / Active Directory, pour les distinguer des domaines Internet de même nom (créé automatiquement s\'il n\'existe pas).', 'dnsmanager');
-        echo "<div class='mb-3 row'>";
-        echo "<label class='col-xxl-4 col-form-label'>";
-        echo __('Type de domaine des zones Windows / AD', 'dnsmanager');
-        echo " <i class='ti ti-info-circle text-muted' data-bs-toggle='tooltip' title='" . htmlspecialchars($helpAdType) . "'></i>";
-        echo "</label>";
-        echo "<div class='col-xxl-8'>";
-        if ($canedit) {
-            echo "<input type='text' name='windowsdns_domain_type' class='form-control' value='" . htmlspecialchars($adType) . "'>";
-        } else {
-            echo "<span class='form-control-plaintext'>" . htmlspecialchars($adType) . "</span>";
-        }
-        echo "</div></div>";
+        // Types de domaine GLPI : listes déroulantes (source : Configuration > Types de domaine, avec ajout possible)
+        self::echoDomainTypeSelect(
+            'internet_domain_type_id', self::getInternetDomainTypeId(),
+            __('Type de domaine des domaines Internet', 'dnsmanager'),
+            __('Type de domaine GLPI attribué aux domaines des fournisseurs Internet (OVH, Gandi). Laissé vide : le type « Internet », créé automatiquement s\'il n\'existe pas. Le « + » permet d\'en créer un.', 'dnsmanager'),
+            __('Par défaut (« Internet »)', 'dnsmanager'),
+            $canedit
+        );
+        self::echoDomainTypeSelect(
+            'windowsdns_domain_type_id', self::getAdDomainTypeId(),
+            __('Type de domaine des zones Windows / AD', 'dnsmanager'),
+            __('Type de domaine GLPI attribué aux zones d\'un serveur DNS Windows / Active Directory, pour les distinguer des domaines Internet de même nom. Laissé vide : le type « DNS AD », créé automatiquement s\'il n\'existe pas. Le « + » permet d\'en créer un. Ce type doit être différent de celui des domaines Internet.', 'dnsmanager'),
+            __('Par défaut (« DNS AD »)', 'dnsmanager'),
+            $canedit
+        );
 
         // Champ domain_lock_timeout
         $lockTimeout = self::getConfig('domain_lock_timeout', 20);
@@ -278,5 +299,28 @@ class PluginConfig extends CommonDBTM
             }
         });
         </script>";
+    }
+
+    /** Liste déroulante des types de domaine GLPI (avec le « + » d'ajout si les droits le permettent) */
+    private static function echoDomainTypeSelect(string $field, int $current, string $label, string $help, string $emptyLabel, bool $canedit): void
+    {
+        echo "<div class='mb-3 row'>";
+        echo "<label class='col-xxl-4 col-form-label'>";
+        echo $label;
+        echo " <i class='ti ti-info-circle text-muted' data-bs-toggle='tooltip' title='" . htmlspecialchars($help) . "'></i>";
+        echo "</label>";
+        echo "<div class='col-xxl-8'>";
+        if ($canedit) {
+            \Dropdown::show(\DomainType::class, [
+                'name'                => $field,
+                'value'               => $current,
+                'display_emptychoice' => true,
+                'emptylabel'          => $emptyLabel,
+            ]);
+        } else {
+            echo "<span class='form-control-plaintext'>"
+                . htmlspecialchars($current > 0 ? \Dropdown::getDropdownName('glpi_domaintypes', $current) : $emptyLabel) . "</span>";
+        }
+        echo "</div></div>";
     }
 }

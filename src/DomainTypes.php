@@ -17,10 +17,28 @@ final class DomainTypes
         return $providerType === 'windowsdns' ? PluginConfig::getAdDomainTypeName() : self::INTERNET;
     }
 
-    /** Identifiant du type attendu pour ce fournisseur (créé s'il n'existe pas) */
+    /**
+     * Identifiant du type attendu pour ce fournisseur : le type choisi dans la configuration du
+     * plugin ; à défaut, le type par défaut (« Internet » / « DNS AD »), créé s'il n'existe pas.
+     */
     public static function idForProvider(string $providerType): int
     {
+        $configured = self::configuredId($providerType);
+        if ($configured > 0 && self::exists($configured)) {
+            return $configured;
+        }
         return self::idByName(self::nameForProvider($providerType), true);
+    }
+
+    private static function configuredId(string $providerType): int
+    {
+        return $providerType === 'windowsdns' ? PluginConfig::getAdDomainTypeId() : PluginConfig::getInternetDomainTypeId();
+    }
+
+    public static function exists(int $id): bool
+    {
+        global $DB;
+        return (bool)$DB->request(['FROM' => 'glpi_domaintypes', 'WHERE' => ['id' => $id]])->current();
     }
 
     public static function idByName(string $name, bool $create): int
@@ -37,17 +55,26 @@ final class DomainTypes
         return (int)$DB->insertId();
     }
 
-    /** Identifiants des AUTRES types gérés par le plugin (sans en créer) */
-    public static function otherManagedIds(int $ownId): array
+    /** Identifiants de TOUS les types gérés par le plugin (Internet, DNS AD), sans en créer */
+    private static function managedIds(): array
     {
         $ids = [];
-        foreach ([self::INTERNET, PluginConfig::getAdDomainTypeName()] as $name) {
-            $id = self::idByName($name, false);
-            if ($id > 0 && $id !== $ownId) {
+        foreach (['ovh', 'windowsdns'] as $provider) {   // 'ovh' : tout fournisseur Internet
+            $id = self::configuredId($provider);
+            if ($id <= 0 || !self::exists($id)) {
+                $id = self::idByName(self::nameForProvider($provider), false);
+            }
+            if ($id > 0) {
                 $ids[$id] = $id;
             }
         }
         return array_values($ids);
+    }
+
+    /** Identifiants des AUTRES types gérés par le plugin (sans en créer) */
+    public static function otherManagedIds(int $ownId): array
+    {
+        return array_values(array_diff(self::managedIds(), [$ownId]));
     }
 
     /**

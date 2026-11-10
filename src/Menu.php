@@ -14,7 +14,6 @@ use Session;
  * Entrées :
  *  - Hébergeurs : la gestion des comptes DNS Hébergeurs du plugin ;
  *  - Domaines   : l'entrée native de GLPI, déplacée ici depuis le menu Gestion ;
- *  - Journal de synchronisation.
  */
 class Menu extends CommonGLPI
 {
@@ -69,16 +68,6 @@ class Menu extends CommonGLPI
                 'page'  => Domain::getSearchURL(false),
                 'icon'  => (string)(Domain::getIcon() ?: 'ti ti-world-www'),
                 'links' => self::links(Domain::getSearchURL(false), Domain::getFormURL(false), Domain::$rightname),
-            ];
-        }
-
-        if (Session::haveRight(Account::$rightname, READ)) {
-            $syncUrl = \Plugin::getWebDir('dnsmanager', false) . '/front/synclog.php';
-            $entries['synclog'] = [
-                'title' => Synclog::getTypeName(2),
-                'page'  => $syncUrl,
-                'icon'  => 'ti ti-history',
-                'links' => ['search' => $syncUrl],
             ];
         }
 

@@ -293,6 +293,8 @@ try {
         default:
             throw new \InvalidArgumentException("Action inconnue : $action");
     }
-} catch (\Exception $e) {
+} catch (\Throwable $e) {
+    // Throwable (et pas seulement Exception) : une erreur PHP grave devient un message lisible
+    // au lieu d'une erreur HTTP 500 muette dans l'interface.
     echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 }
