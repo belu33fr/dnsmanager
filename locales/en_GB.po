@@ -661,3 +661,12 @@ msgstr "DNS sync log"
 
 msgid "Journal synchro"
 msgstr "Sync log"
+
+msgid "Contacts par défaut"
+msgstr "Default contacts"
+
+msgid "Extension"
+msgstr "Extension"
+
+msgid "Type de provider"
+msgstr "Provider type"

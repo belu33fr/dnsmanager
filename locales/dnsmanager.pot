@@ -660,3 +660,12 @@ msgstr ""
 
 msgid "Journal synchro"
 msgstr ""
+
+msgid "Contacts par défaut"
+msgstr ""
+
+msgid "Extension"
+msgstr ""
+
+msgid "Type de provider"
+msgstr ""

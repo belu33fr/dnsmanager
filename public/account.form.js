@@ -300,6 +300,18 @@ window.initDnsManagerForm = function initDnsManagerForm() {
     var result = document.getElementById('dns-action-result');
     window.dnsmanagerFixHelp();
 
+    // Onglets internes : un champ obligatoire invalide dans un onglet masqué ouvre cet onglet. Sans cela,
+    // le navigateur bloque l'envoi du formulaire sans rien montrer (le champ n'est pas visible).
+    var formEl = providerSelect.closest('form');
+    if (formEl) {
+        formEl.addEventListener('invalid', function (e) {
+            var pane = e.target && e.target.closest ? e.target.closest('.tab-pane') : null;
+            if (!pane || pane.classList.contains('active') || !window.bootstrap) return;
+            var trigger = document.querySelector('[data-bs-target="#' + pane.id + '"]');
+            if (trigger) bootstrap.Tab.getOrCreateInstance(trigger).show();
+        }, true);
+    }
+
     // -----------------------------------------------------------------------
     // Test de connexion
     // -----------------------------------------------------------------------

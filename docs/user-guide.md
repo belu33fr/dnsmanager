@@ -190,3 +190,12 @@ DnsAdmins** : il donne bien plus que la lecture et constitue un chemin connu d'�
   (20 par défaut, de 1 à 1000). Réduire la valeur supprime les plus anciens passages à la prochaine synchronisation ;
   l'augmenter ne reconstitue pas l'historique passé, seulement celui des prochaines synchronisations.
 
+## Fiche d'un hébergeur
+
+En haut de page : nom, état, groupes et commentaire (standard GLPI), puis le **type de provider**, les
+**statistiques** et les trois boutons (**Tester la connexion**, **Rechercher nouveaux domaines**, **Sync rapide**).
+Dessous, trois onglets internes — **Extension** (fournisseur GLPI, liste blanche, préavis de facturation),
+**Contacts par défaut** et **Authentification** (nom de la clé, endpoint, identifiants) — qui font partie du même
+formulaire : un seul bouton **Enregistrer** pour l'ensemble. Les onglets de la colonne de gauche sont ceux de GLPI
+(**Hébergeur général**, **Journal**, **Tous**).
+
