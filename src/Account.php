@@ -87,6 +87,8 @@ class Account extends CommonDBTM
     {
         $ong = [];
         $this->addDefaultFormTab($ong);
+        // Libellé de l'onglet principal (même clé que celle posée par addDefaultFormTab)
+        $ong[static::getType() . '$main'] = __('Hébergeur général', 'dnsmanager');
         $this->addStandardTab(Synclog::class, $ong, $options);
         return $ong;
     }

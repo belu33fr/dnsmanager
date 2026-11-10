@@ -652,3 +652,9 @@ msgstr "Failed"
 
 msgid "État"
 msgstr "State"
+
+msgid "Hébergeur général"
+msgstr "Provider (general)"
+
+msgid "Journal de synchro DNS"
+msgstr "DNS sync log"

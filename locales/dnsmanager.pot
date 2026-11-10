@@ -651,3 +651,9 @@ msgstr ""
 
 msgid "État"
 msgstr ""
+
+msgid "Hébergeur général"
+msgstr ""
+
+msgid "Journal de synchro DNS"
+msgstr ""

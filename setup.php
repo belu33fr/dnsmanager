@@ -4,7 +4,7 @@
  * DNSManage - Plugin GLPI 11 de gestion DNS multi-provider
  */
 
-define('PLUGIN_DNSMANAGER_VERSION', '3.14.0');
+define('PLUGIN_DNSMANAGER_VERSION', '3.14.1');
 define('PLUGIN_DNSMANAGER_MIN_GLPI', '11.0.0');
 define('PLUGIN_DNSMANAGER_MAX_GLPI', '12.0.0');
 
@@ -58,6 +58,9 @@ function plugin_init_dnsmanager(): void
     if (strpos($_SERVER['REQUEST_URI'] ?? '', 'dnsmanager/front/account.form.php') !== false) {
         $PLUGIN_HOOKS[Hooks::ADD_JAVASCRIPT]['dnsmanager'][] = 'public/account.form.js';
     }
+
+    // Onglet « Journal de synchro DNS » sur les domaines gérés par le plugin
+    Plugin::registerClass(DomainTab::class, ['addtabon' => ['Domain']]);
 
     // Onglet "DNS Sync" dans les profils
     Plugin::registerClass(Right::class, ['addtabon' => 'Profile']);
