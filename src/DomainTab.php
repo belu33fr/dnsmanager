@@ -76,10 +76,22 @@ class DomainTab extends CommonGLPI
             data-sync-url='{$syncUrl}'>";
         echo "<i class='ti ti-refresh me-1'></i>" . __('Synchroniser ce domaine', 'dnsmanager');
         echo "</button>";
-        echo "</div></div></div></div></div>";
+        echo "</div></div></div></div>";
+        self::showDomainLog($domainId);
+        echo "</div>";
         echo "<script src='{$webdir}/public/domain.sync.js'></script>";
 
         return true;
+    }
+
+    /** Journal de synchronisation de ce domaine (les derniers passages, selon la profondeur configurée) */
+    private static function showDomainLog(int $domainId): void
+    {
+        $rows = DomainLog::forDomain($domainId, PluginConfig::getDomainLogDepth());
+        echo "<div class='row mt-3'><div class='col-12'><div class='card'>";
+        echo "<div class='card-header'><h3>" . __('Journal de synchronisation', 'dnsmanager') . "</h3></div>";
+        echo "<div class='card-body p-0'>" . DomainLog::render($rows) . "</div>";
+        echo "</div></div></div>";
     }
 
     /**

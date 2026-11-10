@@ -562,6 +562,16 @@ window.initDnsManagerForm = function initDnsManagerForm() {
             tab.start(true);
         });
     }
+
+    // Retour arrière du navigateur : la page peut être restaurée depuis le cache avec d'anciens
+    // chiffres. On les rafraîchit dans ce cas.
+    window.addEventListener('pageshow', function (e) {
+        if (e.persisted) { refreshStats(); refreshProviderStats(); }
+    });
+    try {
+        var nav = performance.getEntriesByType('navigation')[0];
+        if (nav && nav.type === 'back_forward') { refreshStats(); }
+    } catch (e) { /* sans importance */ }
 };
 
 // Démarrer — boucle jusqu'à ce que DOM + données soient prêts

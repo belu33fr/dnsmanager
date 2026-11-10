@@ -167,6 +167,7 @@ try {
             $domainImporter = new DomainImporter($accountId, true);
             $domainImporter->restoreDomain($domainId);
             $importer = new Importer($accountId, false);
+            $importer->setOrigin('import');
             $importer->syncDomainByRef($providerRef);
             echo json_encode(['success' => true, 'message' => $providerRef]);
         } catch (\Exception $e) {
@@ -199,6 +200,7 @@ try {
             }
             $t0       = microtime(true);
             $importer = new Importer($accountId, false);
+            $importer->setOrigin('quick');
             $result   = $importer->syncDomainByRef($domainRef);
             $metrics  = ApiMetrics::snapshot();
             echo json_encode([
@@ -266,14 +268,25 @@ try {
             if (!method_exists($provider, 'listDomainRefs')) {
                 throw new \RuntimeException('Comptage non disponible pour ce provider.');
             }
-            $refs   = $provider->listDomainRefs();
-            $mapped = [];
-            foreach ($DB->request(['FROM' => 'glpi_plugin_dnsmanager_domains', 'WHERE' => ['accounts_id' => $accountId]]) as $row) {
-                $mapped[(string)$row['provider_ref']] = true;
+            $refs = $provider->listDomainRefs();
+
+            // « À importer » : même logique que la recherche de nouveaux domaines (nom ET type), et non
+            // le nombre de rattachements. Un domaine du serveur est connu s'il existe dans GLPI avec le
+            // type de ce compte (actif ou en corbeille, donc à restaurer), ou avec un type que le plugin
+            // ne gère pas (domaine géré par un tiers, jamais proposé à l'import).
+            $accData = Account::getWithCredentials($accountId);
+            $ownType = \GlpiPlugin\Dnsmanager\DomainTypes::idForProvider((string)($accData['account']['provider_type'] ?? ''));
+            $managed = array_merge([$ownType], \GlpiPlugin\Dnsmanager\DomainTypes::otherManagedIds($ownType));
+            $known   = [];
+            foreach ($DB->request(['SELECT' => 'name', 'FROM' => 'glpi_domains', 'WHERE' => ['is_template' => 0, 'domaintypes_id' => $ownType]]) as $row) {
+                $known[strtolower((string)$row['name'])] = true;
+            }
+            foreach ($DB->request(['SELECT' => 'name', 'FROM' => 'glpi_domains', 'WHERE' => ['is_template' => 0, 'is_deleted' => 0, 'NOT' => ['domaintypes_id' => $managed]]]) as $row) {
+                $known[strtolower((string)$row['name'])] = true;
             }
             $notLinked = 0;
             foreach ($refs as $ref) {
-                if (!isset($mapped[(string)$ref])) $notLinked++;
+                if (!isset($known[strtolower((string)$ref)])) $notLinked++;
             }
             // Mémoriser pour l'affichage (évite "—" à chaque ouverture de la fiche)
             $DB->update(Account::getTable(), [

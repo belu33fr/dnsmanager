@@ -574,3 +574,81 @@ msgstr "GLPI domain type given to the zones of a Windows DNS / Active Directory 
 
 msgid "Type de domaine des domaines Internet"
 msgstr "Domain type of Internet domains"
+
+msgid "Aucune synchronisation enregistrée pour ce domaine."
+msgstr "No synchronisation recorded for this domain."
+
+msgid "Aucune synchronisation enregistrée."
+msgstr "No synchronisation recorded."
+
+msgid "Compte"
+msgstr "Account"
+
+msgid "Créés"
+msgstr "Created"
+
+msgid "Date"
+msgstr "Date"
+
+msgid "Domaines"
+msgstr "Domains"
+
+msgid "Domaines de l'hébergeur à importer"
+msgstr "Provider domains to import"
+
+msgid "Durée"
+msgstr "Duration"
+
+msgid "Démarré"
+msgstr "Started"
+
+msgid "Enregistrements"
+msgstr "Records"
+
+msgid "Erreurs"
+msgstr "Errors"
+
+msgid "Import"
+msgstr "Import"
+
+msgid "Journal"
+msgstr "Log"
+
+msgid "Journal de synchronisation"
+msgstr "Synchronisation log"
+
+msgid "Manuelle"
+msgstr "Manual"
+
+msgid "Modifiés"
+msgstr "Modified"
+
+msgid "Nombre de passages de synchronisation conservés par domaine (de 1 à 1000, 20 par défaut). Réduire cette valeur supprime les plus anciens passages à la prochaine synchronisation ; l'augmenter ne reconstitue pas l'historique passé, seulement celui des prochaines synchronisations."
+msgstr "Number of synchronisation runs kept per domain (1 to 1000, default 20). Lowering this value deletes the oldest runs at the next synchronisation; raising it does not rebuild past history, only that of future synchronisations."
+
+msgid "OK"
+msgstr "OK"
+
+msgid "Origine"
+msgstr "Origin"
+
+msgid "Partiel"
+msgstr "Partial"
+
+msgid "Profondeur du journal par domaine (passages conservés)"
+msgstr "Per-domain log depth (runs kept)"
+
+msgid "Statut"
+msgstr "Status"
+
+msgid "Tâche automatique"
+msgstr "Automatic task"
+
+msgid "Voir"
+msgstr "View"
+
+msgid "Échec"
+msgstr "Failed"
+
+msgid "État"
+msgstr "State"

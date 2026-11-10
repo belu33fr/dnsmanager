@@ -78,6 +78,19 @@ class Account extends CommonDBTM
     // Formulaire GLPI 11 (Twig)
     // ------------------------------------------------------------------
 
+    /**
+     * Onglets de la fiche : l'onglet principal (formulaire) puis le Journal de synchronisation.
+     * L'onglet principal doit être déclaré explicitement : sans lui, ajouter un autre onglet ferait
+     * disparaître le formulaire.
+     */
+    public function defineTabs($options = [])
+    {
+        $ong = [];
+        $this->addDefaultFormTab($ong);
+        $this->addStandardTab(Synclog::class, $ong, $options);
+        return $ong;
+    }
+
     public function showForm($ID, array $options = []): bool
     {
         // initForm() gère correctement création (ID=0) et édition

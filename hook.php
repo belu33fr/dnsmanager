@@ -123,6 +123,27 @@ function plugin_dnsmanager_install(): bool
         ");
     }
 
+    // Journal de synchronisation PAR DOMAINE (profondeur réglable dans la configuration)
+    if (!$DB->tableExists('glpi_plugin_dnsmanager_domainlogs')) {
+        $DB->doQuery("
+            CREATE TABLE `glpi_plugin_dnsmanager_domainlogs` (
+                `id`              INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                `domains_id`      INT UNSIGNED NOT NULL,
+                `accounts_id`     INT UNSIGNED NOT NULL DEFAULT 0,
+                `run_at`          DATETIME NOT NULL,
+                `origin`          VARCHAR(20) NOT NULL DEFAULT 'manual',
+                `status`          VARCHAR(20) NOT NULL DEFAULT 'success',
+                `records_added`   INT UNSIGNED NOT NULL DEFAULT 0,
+                `records_updated` INT UNSIGNED NOT NULL DEFAULT 0,
+                `error_log`       TEXT NULL,
+                PRIMARY KEY (`id`),
+                KEY `domains_id_id` (`domains_id`, `id`)
+            ) ENGINE=InnoDB
+            DEFAULT CHARSET={$default_charset}
+            COLLATE={$default_collation}
+        ");
+    }
+
     // Journal de synchronisation
     $table = Synclog::getTable();
     if (!$DB->tableExists($table)) {
@@ -215,6 +236,8 @@ function plugin_dnsmanager_uninstall(): bool
     $tables = [
         'glpi_plugin_dnsmanager_records',
         'glpi_plugin_dnsmanager_domains',
+        'glpi_plugin_dnsmanager_domainlogs',
+        'glpi_plugin_dnsmanager_domainlocks',
         Credential::getTable(),
         Synclog::getTable(),
         Account::getTable(),

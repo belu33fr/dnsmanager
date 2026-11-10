@@ -573,3 +573,81 @@ msgstr ""
 
 msgid "Type de domaine des domaines Internet"
 msgstr ""
+
+msgid "Aucune synchronisation enregistrée pour ce domaine."
+msgstr ""
+
+msgid "Aucune synchronisation enregistrée."
+msgstr ""
+
+msgid "Compte"
+msgstr ""
+
+msgid "Créés"
+msgstr ""
+
+msgid "Date"
+msgstr ""
+
+msgid "Domaines"
+msgstr ""
+
+msgid "Domaines de l'hébergeur à importer"
+msgstr ""
+
+msgid "Durée"
+msgstr ""
+
+msgid "Démarré"
+msgstr ""
+
+msgid "Enregistrements"
+msgstr ""
+
+msgid "Erreurs"
+msgstr ""
+
+msgid "Import"
+msgstr ""
+
+msgid "Journal"
+msgstr ""
+
+msgid "Journal de synchronisation"
+msgstr ""
+
+msgid "Manuelle"
+msgstr ""
+
+msgid "Modifiés"
+msgstr ""
+
+msgid "Nombre de passages de synchronisation conservés par domaine (de 1 à 1000, 20 par défaut). Réduire cette valeur supprime les plus anciens passages à la prochaine synchronisation ; l'augmenter ne reconstitue pas l'historique passé, seulement celui des prochaines synchronisations."
+msgstr ""
+
+msgid "OK"
+msgstr ""
+
+msgid "Origine"
+msgstr ""
+
+msgid "Partiel"
+msgstr ""
+
+msgid "Profondeur du journal par domaine (passages conservés)"
+msgstr ""
+
+msgid "Statut"
+msgstr ""
+
+msgid "Tâche automatique"
+msgstr ""
+
+msgid "Voir"
+msgstr ""
+
+msgid "Échec"
+msgstr ""
+
+msgid "État"
+msgstr ""

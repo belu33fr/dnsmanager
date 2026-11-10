@@ -177,3 +177,14 @@ dsacls "CN=MicrosoftDNS,DC=ForestDnsZones,DC=domaine,DC=local" /G "DOMAINE\compt
 
 (`GR` = lecture générique ; vérifiez la syntaxe avec `dsacls /?` et adaptez les noms.) **N'utilisez pas le groupe
 DnsAdmins** : il donne bien plus que la lecture et constitue un chemin connu d'élévation de privilèges.
+
+## Journaux de synchronisation
+
+- **Par compte** : onglet **Journal** de la fiche d'un hébergeur (lecture seule), avec les derniers passages
+  (tâche automatique, synchro rapide…), leur état, leur durée et leurs erreurs. L'entrée de menu dédiée a été retirée.
+- **Par domaine** : dans l'onglet **DNS Sync** de la fiche d'un domaine, le journal des derniers passages sur ce
+  domaine (date, origine, état, enregistrements créés / modifiés, erreurs).
+- **Profondeur** : nombre de passages conservés par domaine, réglable dans la configuration du plugin
+  (20 par défaut, de 1 à 1000). Réduire la valeur supprime les plus anciens passages à la prochaine synchronisation ;
+  l'augmenter ne reconstitue pas l'historique passé, seulement celui des prochaines synchronisations.
+

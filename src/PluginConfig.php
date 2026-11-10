@@ -48,7 +48,11 @@ class PluginConfig extends CommonDBTM
             unset($input['internet_domain_type_id'], $input['windowsdns_domain_type_id']);
         }
 
-        $allowed = ['entity_labels', 'entity_children_labels', 'contact_account_type', 'domain_lock_timeout', 'windowsdns_internal_tlds', 'windowsdns_domain_type', 'windowsdns_domain_type_id', 'internet_domain_type_id'];
+        if (isset($input['domain_log_depth'])) {
+            $input['domain_log_depth'] = max(1, min(1000, (int)$input['domain_log_depth']));
+        }
+
+        $allowed = ['entity_labels', 'entity_children_labels', 'contact_account_type', 'domain_lock_timeout', 'windowsdns_internal_tlds', 'windowsdns_domain_type', 'windowsdns_domain_type_id', 'internet_domain_type_id', 'domain_log_depth'];
         foreach ($allowed as $key) {
             if (!isset($input[$key])) continue;
             $existing = $DB->request([
@@ -119,6 +123,12 @@ class PluginConfig extends CommonDBTM
      * bidirectionnelle des enregistrements DNS. Configurable car peut
      * varier selon l'environnement et le provider (lenteur API, charge serveur).
      */
+    /** Nombre de passages de synchronisation conservés par domaine (journal par domaine) */
+    public static function getDomainLogDepth(): int
+    {
+        return max(1, min(1000, (int)self::getConfig('domain_log_depth', 20)));
+    }
+
     public static function getDomainLockTimeout(): int
     {
         $val = (int)self::getConfig('domain_lock_timeout', 20);
@@ -225,6 +235,22 @@ class PluginConfig extends CommonDBTM
             __('Par défaut (« DNS AD »)', 'dnsmanager'),
             $canedit
         );
+
+        // Journal par domaine : nombre de passages conservés
+        $logDepth = self::getDomainLogDepth();
+        $helpDepth = __('Nombre de passages de synchronisation conservés par domaine (de 1 à 1000, 20 par défaut). Réduire cette valeur supprime les plus anciens passages à la prochaine synchronisation ; l\'augmenter ne reconstitue pas l\'historique passé, seulement celui des prochaines synchronisations.', 'dnsmanager');
+        echo "<div class='mb-3 row'>";
+        echo "<label class='col-xxl-4 col-form-label'>";
+        echo __('Profondeur du journal par domaine (passages conservés)', 'dnsmanager');
+        echo " <i class='ti ti-info-circle text-muted' data-bs-toggle='tooltip' title='" . htmlspecialchars($helpDepth) . "'></i>";
+        echo "</label>";
+        echo "<div class='col-xxl-8'>";
+        if ($canedit) {
+            echo "<input type='number' min='1' max='1000' name='domain_log_depth' class='form-control' style='max-width:150px' value='" . (int)$logDepth . "'>";
+        } else {
+            echo "<span class='form-control-plaintext'>" . (int)$logDepth . "</span>";
+        }
+        echo "</div></div>";
 
         // Champ domain_lock_timeout
         $lockTimeout = self::getConfig('domain_lock_timeout', 20);

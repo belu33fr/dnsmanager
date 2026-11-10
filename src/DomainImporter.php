@@ -384,6 +384,12 @@ class DomainImporter
             ]);
         }
 
+        try {
+            DomainLog::record((int)$id, (int)$this->account['id'], 'import', 'success', 0, 0, null);
+        } catch (\Throwable $e) {
+            // le journal ne doit jamais faire échouer un import
+        }
+
         return (int)$id;
     }
 

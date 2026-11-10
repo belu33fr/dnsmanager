@@ -16,6 +16,7 @@ class Importer
     private int   $recordsAdded    = 0;
     private int   $recordsUpdated  = 0;
     private array $errors          = [];
+    private string $origin         = 'manual';
     private array $changes         = [];
     private string $lastChangeDetail = '';
     private array $skippedDomains  = [];
@@ -57,6 +58,39 @@ class Importer
      * Réservé à la synchro manuelle déclenchée par un utilisateur — le CRON
      * planifié doit toujours traiter l'intégralité des domaines du compte.
      */
+    /** Origine de la synchro, tracée dans le journal par domaine : cron, quick, import, manual */
+    public function setOrigin(string $origin): self
+    {
+        $this->origin = $origin;
+        return $this;
+    }
+
+    /** Compteurs avant le traitement d'un domaine (pour en déduire ce que CE domaine a changé) */
+    private function snapshot(): array
+    {
+        return ['a' => $this->recordsAdded, 'u' => $this->recordsUpdated, 'e' => count($this->errors)];
+    }
+
+    /** Trace un passage dans le journal du domaine ; ne doit jamais faire échouer la synchro */
+    private function logDomainRun(int $glpiDomainId, array $snap, ?string $forceStatus = null): void
+    {
+        try {
+            $errors = array_slice($this->errors, (int)$snap['e']);
+            $status = $forceStatus ?? ($errors === [] ? 'success' : 'partial');
+            DomainLog::record(
+                $glpiDomainId,
+                (int)$this->account['id'],
+                $this->origin,
+                $status,
+                $this->recordsAdded - (int)$snap['a'],
+                $this->recordsUpdated - (int)$snap['u'],
+                $errors === [] ? null : implode("\n", $errors)
+            );
+        } catch (\Throwable $e) {
+            // le journal est un confort : on ignore sa propre erreur
+        }
+    }
+
     public function restrictToActiveEntities(): self
     {
         $this->restrictToActiveEntities = true;
@@ -100,23 +134,31 @@ class Importer
             throw new \RuntimeException("Domaine GLPI #$glpiDomainId introuvable ou en corbeille.");
         }
 
-        // Sync du domaine
-        $domainInfo = $this->provider->getDomainInfo($providerRef);
-        $this->updateGlpiDomainDates($glpiDomainId, $glpiDomain, $domainInfo);
-        $this->updateFacturation($glpiDomainId, $domainInfo);
-        $registrarContacts = $this->resolveRegistrarContacts($domainInfo);
-        $this->updateAdministratifDomaine($glpiDomainId, (int)$glpiDomain['entities_id'], $registrarContacts);
-        $this->updateComplement($glpiDomainId, (int)$glpiDomain['entities_id'], $providerRef);
-        $this->updateGroups($glpiDomainId);
+        $snap = $this->snapshot();
+        try {
+            // Sync du domaine
+            $domainInfo = $this->provider->getDomainInfo($providerRef);
+            $this->updateGlpiDomainDates($glpiDomainId, $glpiDomain, $domainInfo);
+            $this->updateFacturation($glpiDomainId, $domainInfo);
+            $registrarContacts = $this->resolveRegistrarContacts($domainInfo);
+            $this->updateAdministratifDomaine($glpiDomainId, (int)$glpiDomain['entities_id'], $registrarContacts);
+            $this->updateComplement($glpiDomainId, (int)$glpiDomain['entities_id'], $providerRef);
+            $this->updateGroups($glpiDomainId);
 
-        // Sync des enregistrements
-        $this->importRecords($providerRef, $glpiDomainId);
+            // Sync des enregistrements
+            $this->importRecords($providerRef, $glpiDomainId);
 
-        // Mettre à jour le mapping
-        $DB->update('glpi_plugin_dnsmanager_domains', [
-            'last_sync_at' => date('Y-m-d H:i:s'),
-            'sync_status'  => 'ok',
-        ], ['id' => (int)$mapping['id']]);
+            // Mettre à jour le mapping
+            $DB->update('glpi_plugin_dnsmanager_domains', [
+                'last_sync_at' => date('Y-m-d H:i:s'),
+                'sync_status'  => 'ok',
+            ], ['id' => (int)$mapping['id']]);
+        } catch (\Throwable $e) {
+            $this->errors[] = $e->getMessage();
+            $this->logDomainRun($glpiDomainId, $snap, 'failed');
+            throw $e;
+        }
+        $this->logDomainRun($glpiDomainId, $snap);
 
         return [
             'records_added'   => $this->recordsAdded,
@@ -171,6 +213,8 @@ class Importer
 
         try {
             foreach ($this->provider->listDomains() as $domainData) {
+                $glpiDomainId = null;
+                $snap         = $this->snapshot();
                 try {
                     $glpiDomainId = $this->syncDomain($domainData);
                     if ($glpiDomainId === null) {
@@ -179,8 +223,12 @@ class Importer
                         continue;
                     }
                     $this->importRecords($domainData['ref'], $glpiDomainId);
+                    $this->logDomainRun($glpiDomainId, $snap);
                 } catch (\Exception $e) {
                     $this->errors[] = "[{$domainData['name']}] " . $e->getMessage();
+                    if ($glpiDomainId !== null) {
+                        $this->logDomainRun($glpiDomainId, $snap, 'failed');
+                    }
                 }
             }
 
