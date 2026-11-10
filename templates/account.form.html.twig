@@ -1,54 +1,21 @@
 {% extends "generic_show_form.html.twig" %}
 {% import "components/form/fields_macros.html.twig" as fields %}
 
+{#
+ # Fiche de base d'un hébergeur : le gabarit GLPI n'affiche ici que le nom (field_order = ['name']).
+ # Les autres champs (type de provider, groupes, état, commentaire) sont placés ici, dans l'ordre voulu.
+ # Extension, Contacts par défaut et Authentification sont des onglets natifs (src/AccountTabs.php).
+ #}
 {% block more_fields %}
 
-    {# Injection des données pour le JS externe (public/account.form.js) #}
-    <script>
-    window.dnsmanagerData = {
-        allProviderData:     {{ allProviderData|raw }},
-        existingCredentials: {{ credentials|raw }},
-        currentEndpoint:     '{{ currentEndpoint }}',
-        accountId:           {{ item.fields['id'] ?? 0 }},
-        providerStatAge:     {{ (stats and stats.provider_age is not null) ? stats.provider_age : 'null' }},
-        i18n: {
-            chooseEndpoint: {{ __("-- Choisir un endpoint --", "dnsmanager")|json_encode|raw }},
-            noCredentials:  {{ __("Aucun credential requis.", "dnsmanager")|json_encode|raw }},
-            unchanged:      {{ __("(inchangé)", "dnsmanager")|json_encode|raw }},
-            keepPassword:   {{ __("Laissez les champs mot de passe vides pour conserver les credentials existants.", "dnsmanager")|json_encode|raw }},
-            testRunning:    {{ __("Test en cours...", "dnsmanager")|json_encode|raw }},
-            testOk:         {{ __("Connexion réussie !", "dnsmanager")|json_encode|raw }},
-            failure:        {{ __("Échec :", "dnsmanager")|json_encode|raw }},
-            commError:      {{ __("Erreur de communication.", "dnsmanager")|json_encode|raw }},
-            syncStarting:   {{ __("Synchronisation en cours...", "dnsmanager")|json_encode|raw }},
-            syncProgress:   {{ __("Synchronisation : {done} / {total} — {domain}", "dnsmanager")|json_encode|raw }},
-            syncDone:       {{ __("Terminé.", "dnsmanager")|json_encode|raw }},
-            syncSummary:    {{ __("{domains} domaine(s) synchronisé(s) — {added} enregistrement(s) créé(s), {updated} modifié(s).", "dnsmanager")|json_encode|raw }},
-            syncErrors:     {{ __("Erreurs :", "dnsmanager")|json_encode|raw }},
-            syncNothing:    {{ __("Aucun domaine à synchroniser pour ce compte.", "dnsmanager")|json_encode|raw }},
-            syncAborted:    {{ __("Synchronisation interrompue : trop d'erreurs de communication consécutives.", "dnsmanager")|json_encode|raw }},
-            statsRunning:   {{ __("Interrogation de l'hébergeur...", "dnsmanager")|json_encode|raw }},
-            syncDuration:   {{ __("Durée : {time} — moyenne {avg} par domaine — {api} % du temps en appels à l'hébergeur ({calls} appels)", "dnsmanager")|json_encode|raw }},
-            syncSlowest:    {{ __("Domaines les plus lents :", "dnsmanager")|json_encode|raw }},
-            tabSync:        {{ __("Synchronisation", "dnsmanager")|json_encode|raw }},
-            tabDone:        {{ __("Synchronisation terminée", "dnsmanager")|json_encode|raw }},
-            tabDoneErr:     {{ __("Synchronisation terminée avec erreurs", "dnsmanager")|json_encode|raw }},
-            cancel:         {{ __("Annuler", "dnsmanager")|json_encode|raw }},
-            syncCancelling: {{ __("Annulation en cours (fin du domaine en cours)...", "dnsmanager")|json_encode|raw }},
-            syncCancelled:  {{ __("Synchronisation annulée : {done} / {total} domaine(s) traité(s).", "dnsmanager")|json_encode|raw }},
-            searchRunning:  {{ __("Recherche des nouveaux domaines chez l'hébergeur...", "dnsmanager")|json_encode|raw }},
-            tabSearch:      {{ __("Recherche de domaines", "dnsmanager")|json_encode|raw }},
-            syncChanges:    {{ __("Détail des enregistrements créés ou modifiés :", "dnsmanager")|json_encode|raw }}
-        }
-    };
-    </script>
+    {% include '@dnsmanager/account.data.html.twig' %}
 
-    {# ===== Haut de page : type de provider, statistiques et boutons ===== #}
-
-    {# Type de provider #}
-    <div class="mb-3 row">
-        <label class="col-xxl-4 col-form-label">{{ __('Type de provider', 'dnsmanager') }} *</label>
-        <div class="col-xxl-8">
+    {# Type de provider, directement après le nom #}
+    <div class="form-field row col-12 col-sm-6 mb-2">
+        <label class="col-form-label col-xxl-5 text-xxl-end" for="dns-provider-select">
+            {{ __('Type de provider', 'dnsmanager') }} <span class="required">*</span>
+        </label>
+        <div class="col-xxl-7 field-container">
             <select name="provider_type" id="dns-provider-select" class="form-select" required>
                 <option value="" {% if not item.fields['provider_type'] %}selected{% endif %} disabled>
                     -- {{ __('Choisir un provider', 'dnsmanager') }} --
@@ -62,196 +29,92 @@
         </div>
     </div>
 
-    {# Champs masqués pour l'Observateur - valeur passée par showForm() #}
-    {% set is_observer = not can_sync %}
+    {{ fields.dropdownField(
+        'Group',
+        'groups_id_tech',
+        item.fields['groups_id_tech'] ?? 0,
+        __('Group in charge'),
+        {
+            'entity': item.fields['entities_id']|default(-1),
+            'condition': {'is_assign': 1}
+        }
+    ) }}
 
-    {% if is_observer %}
+    {{ fields.dropdownField(
+        'Group',
+        'groups_id',
+        item.fields['groups_id'] ?? 0,
+        'Group'|itemtype_name,
+        {
+            'entity': item.fields['entities_id']|default(-1),
+            'condition': {'is_itemgroup': 1}
+        }
+    ) }}
 
-        {{ fields.dropdownField('Supplier', 'suppliers_id', item.fields['suppliers_id'], __('Fournisseur', 'dnsmanager'), {
-            'display_emptychoice': true,
-            'emptylabel': '-- ' ~ __('Choisir un fournisseur', 'dnsmanager') ~ ' --',
-            'readonly': true
-        }) }}
+    {{ fields.dropdownYesNo('is_active', item.fields['is_active'] ?? 1, __('Active')) }}
 
+    {{ fields.textareaField('comment', item.fields['comment'] ?? '', _n('Comment', 'Comments', get_plural_number())) }}
+
+    {% if item.fields['id'] > 0 %}
+        {% if can_sync %}
+
+        {# Zone de la fiche de base pilotée par account.form.js : statistiques, boutons, résultat #}
+        <div class="col-12" id="dns-main-root">
+
+            {% if stats %}
+            {{ fields.smallTitle(__('Statistiques', 'dnsmanager')) }}
+            <div class="col-12 mb-3">
+                <table class="table table-sm table-borderless w-auto mb-0">
+                    <tr>
+                        <td class="text-muted pe-4">{{ __('Domaines dans GLPI (rattachés à ce compte)', 'dnsmanager') }}</td>
+                        <td><strong id="dns-stat-glpi">{{ stats.glpi_domains }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted pe-4">{{ __("Domaines chez l'hébergeur", 'dnsmanager') }}</td>
+                        <td>
+                            <strong id="dns-stat-provider">{{ stats.provider_domains is not null ? stats.provider_domains : '—' }}</strong>
+                            <button type="button" id="dns-btn-stats" class="btn btn-sm btn-outline-secondary ms-2">
+                                <i class="ti ti-refresh me-1"></i>{{ __('Actualiser', 'dnsmanager') }}
+                            </button>
+                            <span class="text-muted small ms-2" id="dns-stat-checked">{{ stats.provider_checked }}</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted pe-4">{{ __("Domaines de l'hébergeur à importer", 'dnsmanager') }}</td>
+                        <td><strong id="dns-stat-notlinked">{{ stats.provider_not_linked is not null ? stats.provider_not_linked : '—' }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted pe-4">{{ __('Dernière synchronisation des enregistrements', 'dnsmanager') }}</td>
+                        <td id="dns-stat-lastrec">{{ stats.last_records_sync ?: '—' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted pe-4">{{ __('Dernier passage de synchronisation', 'dnsmanager') }}</td>
+                        <td id="dns-stat-lastlog">{{ stats.last_log ?: '—' }}</td>
+                    </tr>
+                </table>
+            </div>
+            {% endif %}
+
+            <div class="mb-3 d-flex gap-2 flex-wrap">
+                <button type="button" id="dns-btn-test" class="btn btn-primary">
+                    <i class="ti ti-plug me-1"></i>{{ __('Tester la connexion', 'dnsmanager') }}
+                </button>
+                <a href="{{ webdir }}/front/domain.import.php?account_id={{ item.fields['id'] }}"
+                   class="btn btn-primary" id="dns-btn-sync-interactive">
+                    <i class="ti ti-world-upload me-1"></i>{{ __('Rechercher nouveaux domaines', 'dnsmanager') }}
+                </a>
+                <button type="button" id="dns-btn-sync" class="btn btn-primary">
+                    <i class="ti ti-refresh me-1"></i>{{ __('Sync rapide', 'dnsmanager') }}
+                </button>
+            </div>
+            <div id="dns-action-result" class="mb-3"></div>
+        </div>
+
+        {% else %}
         <div class="alert alert-info mt-2">
             <i class="ti ti-info-circle me-2"></i>{{ __("Accès en lecture seule.", "dnsmanager") }}
         </div>
-
-    {% else %}
-
-        {% if item.fields['id'] > 0 and stats %}
-        {{ fields.smallTitle(__('Statistiques', 'dnsmanager')) }}
-        <div class="col-12 mb-3">
-            <table class="table table-sm table-borderless w-auto mb-0">
-                <tr>
-                    <td class="text-muted pe-4">{{ __('Domaines dans GLPI (rattachés à ce compte)', 'dnsmanager') }}</td>
-                    <td><strong id="dns-stat-glpi">{{ stats.glpi_domains }}</strong></td>
-                </tr>
-                <tr>
-                    <td class="text-muted pe-4">{{ __("Domaines chez l'hébergeur", 'dnsmanager') }}</td>
-                    <td>
-                        <strong id="dns-stat-provider">{{ stats.provider_domains is not null ? stats.provider_domains : '—' }}</strong>
-                        <button type="button" id="dns-btn-stats" class="btn btn-sm btn-outline-secondary ms-2">
-                            <i class="ti ti-refresh me-1"></i>{{ __('Actualiser', 'dnsmanager') }}
-                        </button>
-                        <span class="text-muted small ms-2" id="dns-stat-checked">{{ stats.provider_checked }}</span>
-                    </td>
-                </tr>
-                <tr>
-                    <td class="text-muted pe-4">{{ __("Domaines de l'hébergeur à importer", 'dnsmanager') }}</td>
-                    <td><strong id="dns-stat-notlinked">{{ stats.provider_not_linked is not null ? stats.provider_not_linked : '—' }}</strong></td>
-                </tr>
-                <tr>
-                    <td class="text-muted pe-4">{{ __('Dernière synchronisation des enregistrements', 'dnsmanager') }}</td>
-                    <td id="dns-stat-lastrec">{{ stats.last_records_sync ?: '—' }}</td>
-                </tr>
-                <tr>
-                    <td class="text-muted pe-4">{{ __('Dernier passage de synchronisation', 'dnsmanager') }}</td>
-                    <td id="dns-stat-lastlog">{{ stats.last_log ?: '—' }}</td>
-                </tr>
-            </table>
-        </div>
         {% endif %}
-
-        {% if item.fields['id'] > 0 %}
-        <div class="col-12 mb-3 d-flex gap-2 flex-wrap">
-            <button type="button" id="dns-btn-test" class="btn btn-primary">
-                <i class="ti ti-plug me-1"></i>{{ __('Tester la connexion', 'dnsmanager') }}
-            </button>
-            <a href="{{ webdir }}/front/domain.import.php?account_id={{ item.fields['id'] }}"
-               class="btn btn-primary" id="dns-btn-sync-interactive">
-                <i class="ti ti-world-upload me-1"></i>{{ __('Rechercher nouveaux domaines', 'dnsmanager') }}
-            </a>
-            <button type="button" id="dns-btn-sync" class="btn btn-primary">
-                <i class="ti ti-refresh me-1"></i>{{ __('Sync rapide', 'dnsmanager') }}
-            </button>
-        </div>
-        {% endif %}
-        <div id="dns-action-result" class="col-12 mb-3"></div>
-
-        {# ===== Onglets internes (une seule page, un seul bouton Enregistrer) ===== #}
-        <div class="col-12 mt-2" id="dns-inner-tabs">
-            <ul class="nav nav-tabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button type="button" class="nav-link active" data-bs-toggle="tab" data-bs-target="#dns-tab-extension" role="tab" aria-selected="true">
-                        {{ __('Extension', 'dnsmanager') }}
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#dns-tab-contacts" role="tab" aria-selected="false">
-                        {{ __('Contacts par défaut', 'dnsmanager') }}
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#dns-tab-auth" role="tab" aria-selected="false">
-                        {{ __('Authentification', 'dnsmanager') }}
-                    </button>
-                </li>
-            </ul>
-
-            <div class="tab-content border border-top-0 rounded-bottom p-3 mb-3">
-
-                {# --- Extension --- #}
-                <div class="tab-pane fade show active" id="dns-tab-extension" role="tabpanel">
-                    <div class="row">
-                        {{ fields.dropdownField('Supplier', 'suppliers_id', item.fields['suppliers_id'], __('Fournisseur', 'dnsmanager'), {
-                            'display_emptychoice': true,
-                            'emptylabel': '-- ' ~ __('Choisir un fournisseur', 'dnsmanager') ~ ' --',
-                            'readonly': is_observer
-                        }) }}
-
-                        {{ fields.textField('domain_whitelist', item.fields['domain_whitelist'], __('Liste blanche des domaines', 'dnsmanager'), {
-                            'helper': __("Domaines séparés par virgules. Vide = tous les domaines éligibles.", 'dnsmanager')
-                        }) }}
-
-                        {{ fields.numberField('renewal_months', item.fields['renewal_months'] ?? 1, __('Préavis de facturation (mois)', 'dnsmanager'), {
-                            'min': 1, 'max': 12
-                        }) }}
-                    </div>
-                </div>
-
-                {# --- Contacts par défaut --- #}
-                <div class="tab-pane fade" id="dns-tab-contacts" role="tabpanel">
-                    <div class="row">
-                        {# Groupe et Groupe responsable sont gérés automatiquement par GLPI en haut de page #}
-                        {# Ils sont mémorisés via groups_id et groups_id_tech dans la table du compte #}
-
-                        {% if accounts_class %}
-                        {{ fields.dropdownField(
-                            accounts_class,
-                            'plugin_accounts_accounts_id_administrateurfield',
-                            item.fields['plugin_accounts_accounts_id_administrateurfield'] ?? 0,
-                            __('Administrateur', 'dnsmanager'),
-                            {'display_emptychoice': true, 'condition': accounts_type_condition}
-                        ) }}
-
-                        {{ fields.dropdownField(
-                            accounts_class,
-                            'plugin_accounts_accounts_id_technicienfield',
-                            item.fields['plugin_accounts_accounts_id_technicienfield'] ?? 0,
-                            __('Technicien', 'dnsmanager'),
-                            {'display_emptychoice': true, 'condition': accounts_type_condition}
-                        ) }}
-
-                        {{ fields.dropdownField(
-                            accounts_class,
-                            'plugin_accounts_accounts_id_financierfield',
-                            item.fields['plugin_accounts_accounts_id_financierfield'] ?? 0,
-                            __('Financier', 'dnsmanager'),
-                            {'display_emptychoice': true, 'condition': accounts_type_condition}
-                        ) }}
-                        {% else %}
-                        <div class="alert alert-warning">
-                            <i class="ti ti-alert-triangle me-2"></i>{{ __('Plugin Accounts requis pour les contacts.', 'dnsmanager') }}
-                        </div>
-                        {% endif %}
-
-                        {{ fields.dropdownField(
-                            'Group',
-                            'contact_groups_id',
-                            item.fields['contact_groups_id'] ?? 0,
-                            __('Groupe concerné (comptes contacts créés)', 'dnsmanager'),
-                            {
-                                'display_emptychoice': true,
-                                'helper': __('Groupe assigné automatiquement aux nouveaux comptes contact créés depuis le registrar (Statut : Actif, Type : Fournisseur)', 'dnsmanager')
-                            }
-                        ) }}
-
-                        {{ fields.dropdownField(
-                            'User',
-                            'users_id_proprietairefield',
-                            item.fields['users_id_proprietairefield'] ?? 0,
-                            __('Propriétaire', 'dnsmanager'),
-                            {'display_emptychoice': true, 'right': 'all'}
-                        ) }}
-                    </div>
-                </div>
-
-                {# --- Authentification --- #}
-                <div class="tab-pane fade" id="dns-tab-auth" role="tabpanel">
-                    <div class="row">
-                        {{ fields.textField('provider_key_name', item.fields['provider_key_name'], __('Nom de la clé chez le provider', 'dnsmanager'), {
-                            'helper': __("Libellé libre pour retrouver facilement cette clé API dans l'interface du provider (ex: OVH, Gandi) — utile si vous en gérez plusieurs.", 'dnsmanager')
-                        }) }}
-
-                        {# Endpoint #}
-                        <div class="mb-3 row" id="dns-endpoint-section">
-                            <label class="col-xxl-4 col-form-label">{{ __('Endpoint / Région', 'dnsmanager') }} *</label>
-                            <div class="col-xxl-8">
-                                <select name="endpoint" id="dns-endpoint-select" class="form-select" required>
-                                    <option value="" selected disabled>-- {{ __('Choisir un endpoint', 'dnsmanager') }} --</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        {# Rempli par account.form.js dès qu'un provider est choisi (vide à la création) #}
-                        <div id="dns-credentials-section" class="col-12 mb-3"></div>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-
     {% endif %}
 
 {% endblock more_fields %}

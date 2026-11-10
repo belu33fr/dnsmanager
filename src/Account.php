@@ -89,15 +89,16 @@ class Account extends CommonDBTM
         $this->addDefaultFormTab($ong);
         // Libellé de l'onglet principal (même clé que celle posée par addDefaultFormTab)
         $ong[static::getType() . '$main'] = __('Hébergeur général', 'dnsmanager');
+        $this->addStandardTab(AccountTabs::class, $ong, $options);
         $this->addStandardTab(Synclog::class, $ong, $options);
         return $ong;
     }
 
-    public function showForm($ID, array $options = []): bool
+    /**
+     * Variables communes à la fiche de base et aux onglets (Extension, Contacts, Authentification).
+     */
+    public function getTemplateVars(array $options = []): array
     {
-        // initForm() gère correctement création (ID=0) et édition
-        $this->initForm($ID, $options);
-
         $providers = ProviderFactory::getAvailableProviders();
         $allProviderData = [];
         foreach ($providers as $type => $label) {
@@ -107,6 +108,7 @@ class Account extends CommonDBTM
             ];
         }
 
+        $ID          = (int)($this->fields['id'] ?? 0);
         $credentials = [];
         if ($ID > 0) {
             $credentials = Credential::getForAccount($ID);
@@ -134,7 +136,7 @@ class Account extends CommonDBTM
         // Statistiques du compte (comptes existants uniquement)
         $stats = ((int)($this->fields['id'] ?? 0) > 0) ? self::getStats((int)$this->fields['id']) : null;
 
-        $twig_vars = [
+        return [
             'item'                   => $this,
             'params'                 => $options,
             'providers'              => $providers,
@@ -147,6 +149,17 @@ class Account extends CommonDBTM
             'accounts_type_condition' => $accountsTypeCondition,
             'stats'                  => $stats,
         ];
+    }
+
+    public function showForm($ID, array $options = []): bool
+    {
+        // initForm() gère correctement création (ID=0) et édition
+        $this->initForm($ID, $options);
+
+        $twig_vars = $this->getTemplateVars($options);
+        // La fiche de base ne reprend du gabarit GLPI que le nom : les autres champs (type de provider,
+        // groupes, état, commentaire) sont placés par le plugin, dans l'ordre voulu.
+        $twig_vars['field_order'] = ['name'];
 
         \Glpi\Application\View\TemplateRenderer::getInstance()->display(
             '@dnsmanager/account.form.html.twig',

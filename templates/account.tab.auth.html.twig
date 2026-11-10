@@ -1,0 +1,38 @@
+{% import "components/form/fields_macros.html.twig" as fields %}
+{% include '@dnsmanager/account.data.html.twig' %}
+
+{# Onglet Authentification : nom de la clé, endpoint et identifiants (champs selon le type de provider enregistré) #}
+<div class="card-body" id="dns-auth-root">
+    <form method="post" action="{{ item.getFormURL() }}" data-track-changes="true">
+        <input type="hidden" name="id" value="{{ item.fields['id'] }}">
+
+        <div class="row">
+            {{ fields.textField('provider_key_name', item.fields['provider_key_name'], __('Nom de la clé chez le provider', 'dnsmanager'), {
+                'helper': __("Libellé libre pour retrouver facilement cette clé API dans l'interface du provider (ex: OVH, Gandi) — utile si vous en gérez plusieurs.", 'dnsmanager')
+            }) }}
+
+            {# Endpoint : rempli et affiché par account.form.js selon le type de provider #}
+            <div class="mb-3 row" id="dns-endpoint-section">
+                <label class="col-xxl-4 col-form-label">{{ __('Endpoint / Région', 'dnsmanager') }} *</label>
+                <div class="col-xxl-8">
+                    <select name="endpoint" id="dns-endpoint-select" class="form-select" required>
+                        <option value="" selected disabled>-- {{ __('Choisir un endpoint', 'dnsmanager') }} --</option>
+                    </select>
+                </div>
+            </div>
+
+            {# Rempli par account.form.js selon le type de provider #}
+            <div id="dns-credentials-section" class="col-12 mb-3"></div>
+        </div>
+
+        <div class="d-flex gap-2 justify-content-between mt-3">
+            <button type="button" class="btn btn-primary dns-test-btn">
+                <i class="ti ti-plug me-1"></i>{{ __('Tester la connexion', 'dnsmanager') }}
+            </button>
+            <button type="submit" name="update" value="1" class="btn btn-primary">
+                <i class="ti ti-device-floppy me-1"></i>{{ _x('button', 'Save') }}
+            </button>
+        </div>
+        <div class="dns-result mt-3"></div>
+        {{ call('Html::closeForm', [false])|raw }}
+</div>

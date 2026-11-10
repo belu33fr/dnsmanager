@@ -132,22 +132,28 @@ window.dnsmanagerTab = (function () {
     };
 })();
 
+/**
+ * Initialisation par ZONE. La fiche d'un hébergeur est faite d'onglets natifs GLPI, chargés après la
+ * page, chacun avec ses propres éléments :
+ *   - #dns-main-root : fiche de base (statistiques, boutons Tester / Rechercher / Sync rapide) ;
+ *   - #dns-auth-root : onglet Authentification (endpoint, identifiants, test avec les valeurs saisies).
+ * Chaque zone n'est branchée qu'une fois, dès qu'elle apparaît dans la page (voir le démarrage en bas).
+ */
 window.initDnsManagerForm = function initDnsManagerForm() {
-    var data           = window.dnsmanagerData;
-    var providerSelect = document.getElementById('dns-provider-select');
+    var data = window.dnsmanagerData;
+    if (!data) return;
 
-    // Attendre que les données ET les éléments DOM soient disponibles
-    window.__dnsmanagerRetries = (window.__dnsmanagerRetries || 0) + 1;
-    if ((!data || !providerSelect) && window.__dnsmanagerRetries < 100) {
-        setTimeout(initDnsManagerForm, 150);
-        return;
-    }
-    if (!data || !providerSelect) return;
+    window.dnsmanagerFixHelp();
 
-    // Garde anti double initialisation : sans elle, les écouteurs seraient branchés
-    // deux fois et chaque clic lancerait deux requêtes en parallèle.
-    if (providerSelect.dataset.dnsmanagerInit === '1') return;
-    providerSelect.dataset.dnsmanagerInit = '1';
+    var mainRoot = document.getElementById('dns-main-root');
+    var authRoot = document.getElementById('dns-auth-root');
+    var doMain   = !!(mainRoot && mainRoot.dataset.dnsmanagerInit !== '1');
+    var doAuth   = !!(authRoot && authRoot.dataset.dnsmanagerInit !== '1');
+    if (!doMain && !doAuth) return;
+    // Garde anti double initialisation : sans elle, les écouteurs seraient branchés deux fois
+    // et chaque clic lancerait deux requêtes en parallèle.
+    if (doMain) mainRoot.dataset.dnsmanagerInit = '1';
+    if (doAuth) authRoot.dataset.dnsmanagerInit = '1';
 
     var providerData     = data.allProviderData     || {};
     var savedCredentials = data.existingCredentials || {};
@@ -293,61 +299,57 @@ window.initDnsManagerForm = function initDnsManagerForm() {
         renderCredentials(d.fields   || []);
     }
 
-    // Initialisation
-    if (providerSelect.value) loadProvider(providerSelect.value);
-    providerSelect.addEventListener('change', function () { loadProvider(this.value); });
-
-    var result = document.getElementById('dns-action-result');
-    window.dnsmanagerFixHelp();
-
-    // Onglets internes : un champ obligatoire invalide dans un onglet masqué ouvre cet onglet. Sans cela,
-    // le navigateur bloque l'envoi du formulaire sans rien montrer (le champ n'est pas visible).
-    var formEl = providerSelect.closest('form');
-    if (formEl) {
-        formEl.addEventListener('invalid', function (e) {
-            var pane = e.target && e.target.closest ? e.target.closest('.tab-pane') : null;
-            if (!pane || pane.classList.contains('active') || !window.bootstrap) return;
-            var trigger = document.querySelector('[data-bs-target="#' + pane.id + '"]');
-            if (trigger) bootstrap.Tab.getOrCreateInstance(trigger).show();
-        }, true);
-    }
 
     // -----------------------------------------------------------------------
-    // Test de connexion
+    // Test de connexion : fiche de base (identifiants enregistrés) ou onglet
+    // Authentification (valeurs saisies, avant enregistrement)
     // -----------------------------------------------------------------------
-    var btnTest = document.getElementById('dns-btn-test');
-    if (btnTest) {
-        btnTest.addEventListener('click', function () {
-            var params = { action: 'test_form' };
+    function bindTest(btn, resultEl) {
+        if (!btn || !resultEl) return;
+        btn.addEventListener('click', function () {
+            var params = { action: 'test_form', provider_type: data.providerType || '' };
             if (accountId) params.account_id = accountId;
-            var pSel = document.getElementById('dns-provider-select');
-            if (pSel) params.provider_type = pSel.value;
             var eSel = document.getElementById('dns-endpoint-select');
-            if (eSel) params.endpoint = eSel.value;
+            params.endpoint = (eSel && eSel.value) ? eSel.value : savedEndpoint;
             document.querySelectorAll('[name^="cred_"]').forEach(function (el) {
                 if (el.value.trim()) params[el.name] = el.value;
             });
-            btnTest.disabled = true;
-            result.innerHTML = '<div class="alert alert-info d-flex align-items-center">' + SPINNER
+            btn.disabled = true;
+            resultEl.innerHTML = '<div class="alert alert-info d-flex align-items-center">' + SPINNER
                 + '<span>' + esc(t('testRunning')) + '</span></div>';
             fetchJson(params)
                 .then(function (d) {
-                    btnTest.disabled = false;
+                    btn.disabled = false;
                     if (d.success) {
                         var diagHtml = d.message ? '<pre class="mt-2 mb-0 small">' + esc(d.message) + '</pre>' : '';
-                        result.innerHTML = '<div class="alert alert-success"><i class="ti ti-circle-check me-2"></i>'
+                        resultEl.innerHTML = '<div class="alert alert-success"><i class="ti ti-circle-check me-2"></i>'
                             + esc(t('testOk')) + diagHtml + '</div>';
                     } else {
-                        result.innerHTML = '<div class="alert alert-danger"><i class="ti ti-circle-x me-2"></i><strong>'
+                        resultEl.innerHTML = '<div class="alert alert-danger"><i class="ti ti-circle-x me-2"></i><strong>'
                             + esc(t('failure')) + '</strong> ' + esc(d.message) + '</div>';
                     }
                 })
                 .catch(function (e) {
-                    btnTest.disabled = false;
-                    result.innerHTML = '<div class="alert alert-danger">' + esc(commErr(e)) + '</div>';
+                    btn.disabled = false;
+                    resultEl.innerHTML = '<div class="alert alert-danger">' + esc(commErr(e)) + '</div>';
                 });
         });
     }
+
+    // -----------------------------------------------------------------------
+    // Zone « Authentification »
+    // -----------------------------------------------------------------------
+    function initAuth() {
+        loadProvider(data.providerType || '');
+        bindTest(authRoot.querySelector('.dns-test-btn'), authRoot.querySelector('.dns-result'));
+    }
+
+    // -----------------------------------------------------------------------
+    // Zone « fiche de base » : statistiques et boutons
+    // -----------------------------------------------------------------------
+    function initMain() {
+        var result = document.getElementById('dns-action-result');
+        bindTest(document.getElementById('dns-btn-test'), result);
 
     // -----------------------------------------------------------------------
     // Sync rapide : domaine par domaine (une requête courte par domaine) avec
@@ -584,8 +586,26 @@ window.initDnsManagerForm = function initDnsManagerForm() {
         var nav = performance.getEntriesByType('navigation')[0];
         if (nav && nav.type === 'back_forward') { refreshStats(); }
     } catch (e) { /* sans importance */ }
+    }
+
+    if (doAuth) initAuth();
+    if (doMain) initMain();
 };
 
-// Démarrer — boucle jusqu'à ce que DOM + données soient prêts
-// (un seul appel : la garde dataset.dnsmanagerInit empêche de toute façon un double branchement)
-window.initDnsManagerForm();
+// Démarrage. Les onglets natifs de GLPI sont chargés après la page et ne contiennent chacun qu'une
+// partie des éléments : on retente donc l'initialisation à chaque modification de la page (la plupart du
+// temps sans effet, car chaque zone n'est branchée qu'une fois).
+(function () {
+    var timer = null;
+    function schedule() {
+        if (timer) return;
+        timer = setTimeout(function () { timer = null; window.initDnsManagerForm(); }, 60);
+    }
+    function start() {
+        if (window.MutationObserver && document.body) {
+            new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+        }
+        schedule();
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();

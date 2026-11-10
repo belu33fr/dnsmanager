@@ -1,0 +1,40 @@
+{# Données et textes traduits pour public/account.form.js — inclus par la fiche de base et par chaque onglet #}
+<script>
+window.dnsmanagerData = {
+    allProviderData:     {{ allProviderData|raw }},
+    existingCredentials: {{ credentials|raw }},
+    currentEndpoint:     '{{ currentEndpoint }}',
+    accountId:           {{ item.fields['id'] ?? 0 }},
+    providerType:        {{ (item.fields['provider_type'] ?? '')|json_encode|raw }},
+    providerStatAge:     {{ (stats and stats.provider_age is not null) ? stats.provider_age : 'null' }},
+    i18n: {
+        chooseEndpoint: {{ __("-- Choisir un endpoint --", "dnsmanager")|json_encode|raw }},
+        noCredentials:  {{ __("Aucun credential requis.", "dnsmanager")|json_encode|raw }},
+        unchanged:      {{ __("(inchangé)", "dnsmanager")|json_encode|raw }},
+        keepPassword:   {{ __("Laissez les champs mot de passe vides pour conserver les credentials existants.", "dnsmanager")|json_encode|raw }},
+        testRunning:    {{ __("Test en cours...", "dnsmanager")|json_encode|raw }},
+        testOk:         {{ __("Connexion réussie !", "dnsmanager")|json_encode|raw }},
+        failure:        {{ __("Échec :", "dnsmanager")|json_encode|raw }},
+        commError:      {{ __("Erreur de communication.", "dnsmanager")|json_encode|raw }},
+        syncStarting:   {{ __("Synchronisation en cours...", "dnsmanager")|json_encode|raw }},
+        syncProgress:   {{ __("Synchronisation : {done} / {total} — {domain}", "dnsmanager")|json_encode|raw }},
+        syncDone:       {{ __("Terminé.", "dnsmanager")|json_encode|raw }},
+        syncSummary:    {{ __("{domains} domaine(s) synchronisé(s) — {added} enregistrement(s) créé(s), {updated} modifié(s).", "dnsmanager")|json_encode|raw }},
+        syncErrors:     {{ __("Erreurs :", "dnsmanager")|json_encode|raw }},
+        syncNothing:    {{ __("Aucun domaine à synchroniser pour ce compte.", "dnsmanager")|json_encode|raw }},
+        syncAborted:    {{ __("Synchronisation interrompue : trop d'erreurs de communication consécutives.", "dnsmanager")|json_encode|raw }},
+        statsRunning:   {{ __("Interrogation de l'hébergeur...", "dnsmanager")|json_encode|raw }},
+        syncDuration:   {{ __("Durée : {time} — moyenne {avg} par domaine — {api} % du temps en appels à l'hébergeur ({calls} appels)", "dnsmanager")|json_encode|raw }},
+        syncSlowest:    {{ __("Domaines les plus lents :", "dnsmanager")|json_encode|raw }},
+        tabSync:        {{ __("Synchronisation", "dnsmanager")|json_encode|raw }},
+        tabDone:        {{ __("Synchronisation terminée", "dnsmanager")|json_encode|raw }},
+        tabDoneErr:     {{ __("Synchronisation terminée avec erreurs", "dnsmanager")|json_encode|raw }},
+        cancel:         {{ __("Annuler", "dnsmanager")|json_encode|raw }},
+        syncCancelling: {{ __("Annulation en cours (fin du domaine en cours)...", "dnsmanager")|json_encode|raw }},
+        syncCancelled:  {{ __("Synchronisation annulée : {done} / {total} domaine(s) traité(s).", "dnsmanager")|json_encode|raw }},
+        searchRunning:  {{ __("Recherche des nouveaux domaines chez l'hébergeur...", "dnsmanager")|json_encode|raw }},
+        tabSearch:      {{ __("Recherche de domaines", "dnsmanager")|json_encode|raw }},
+        syncChanges:    {{ __("Détail des enregistrements créés ou modifiés :", "dnsmanager")|json_encode|raw }}
+    }
+};
+</script>

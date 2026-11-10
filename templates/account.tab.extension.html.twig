@@ -1,0 +1,30 @@
+{% import "components/form/fields_macros.html.twig" as fields %}
+{% include '@dnsmanager/account.data.html.twig' %}
+
+{# Onglet Extension : fournisseur GLPI, liste blanche, préavis de facturation #}
+<div class="card-body">
+    <form method="post" action="{{ item.getFormURL() }}" data-track-changes="true">
+        <input type="hidden" name="id" value="{{ item.fields['id'] }}">
+
+        <div class="row">
+            {{ fields.dropdownField('Supplier', 'suppliers_id', item.fields['suppliers_id'], __('Fournisseur', 'dnsmanager'), {
+                'display_emptychoice': true,
+                'emptylabel': '-- ' ~ __('Choisir un fournisseur', 'dnsmanager') ~ ' --'
+            }) }}
+
+            {{ fields.textField('domain_whitelist', item.fields['domain_whitelist'], __('Liste blanche des domaines', 'dnsmanager'), {
+                'helper': __("Domaines séparés par virgules. Vide = tous les domaines éligibles.", 'dnsmanager')
+            }) }}
+
+            {{ fields.numberField('renewal_months', item.fields['renewal_months'] ?? 1, __('Préavis de facturation (mois)', 'dnsmanager'), {
+                'min': 1, 'max': 12
+            }) }}
+        </div>
+
+        <div class="d-flex justify-content-end mt-3">
+            <button type="submit" name="update" value="1" class="btn btn-primary">
+                <i class="ti ti-device-floppy me-1"></i>{{ _x('button', 'Save') }}
+            </button>
+        </div>
+        {{ call('Html::closeForm', [false])|raw }}
+</div>

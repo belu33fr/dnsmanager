@@ -192,10 +192,18 @@ DnsAdmins** : il donne bien plus que la lecture et constitue un chemin connu d'�
 
 ## Fiche d'un hébergeur
 
-En haut de page : nom, état, groupes et commentaire (standard GLPI), puis le **type de provider**, les
-**statistiques** et les trois boutons (**Tester la connexion**, **Rechercher nouveaux domaines**, **Sync rapide**).
-Dessous, trois onglets internes — **Extension** (fournisseur GLPI, liste blanche, préavis de facturation),
-**Contacts par défaut** et **Authentification** (nom de la clé, endpoint, identifiants) — qui font partie du même
-formulaire : un seul bouton **Enregistrer** pour l'ensemble. Les onglets de la colonne de gauche sont ceux de GLPI
-(**Hébergeur général**, **Journal**, **Tous**).
+La fiche suit la logique habituelle de GLPI, avec des onglets natifs dans la colonne de gauche :
 
+- **Hébergeur général** : nom, type de provider, groupe responsable, groupe, état, commentaire (et entité, en
+  haut de page), puis les **statistiques** et les trois boutons (**Tester la connexion**, **Rechercher nouveaux
+  domaines**, **Sync rapide**).
+- **Extension** : fournisseur GLPI, liste blanche des domaines, préavis de facturation.
+- **Contacts par défaut** : administrateur, technicien, financier, groupe concerné, propriétaire.
+- **Authentification** : nom de la clé chez le provider, endpoint et identifiants (les champs dépendent du type de
+  provider enregistré). Le bouton **Tester la connexion** de cet onglet utilise les valeurs saisies, avant
+  enregistrement.
+- **Journal** : journal de synchronisation du compte (lecture seule).
+
+**À la création**, seule la fiche de base est saisie. Les onglets Extension, Contacts par défaut et Authentification
+apparaissent en rouvrant la fiche une fois enregistrée. Chaque onglet a son propre bouton **Enregistrer**, qui ne
+modifie que les champs de cet onglet. Si vous changez le type de provider, revoyez l'onglet Authentification.
