@@ -182,7 +182,7 @@ DnsAdmins** : il donne bien plus que la lecture et constitue un chemin connu d'�
 
 - **Par compte** : onglet **Journal** de la fiche d'un hébergeur (lecture seule), avec les derniers passages
   (tâche automatique, synchro rapide…), leur état, leur durée et leurs erreurs. L'entrée de menu dédiée a été retirée.
-- **Par domaine** : onglet **Journal de synchro DNS** de la fiche d'un domaine géré par le plugin, avec les derniers
+- **Par domaine** : onglet **Journal synchro** de la fiche d'un domaine géré par le plugin, avec les derniers
   passages sur ce domaine (date, origine, état, enregistrements créés / modifiés, erreurs). Le bouton
   « Synchroniser ce domaine » reste dans l'onglet principal du domaine. Le journal du compte (tâche automatique, synchro
   rapide) ne contient pas les synchronisations d'un seul domaine : celles-ci sont tracées dans le journal du domaine.

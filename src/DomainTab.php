@@ -34,7 +34,7 @@ class DomainTab extends CommonGLPI
             'WHERE' => ['domains_id' => (int)$item->getID()],
         ])->current()['cpt'] ?? 0);
 
-        return self::createTabEntry(__('Journal de synchro DNS', 'dnsmanager'), $count);
+        return self::createTabEntry(__('Journal synchro', 'dnsmanager'), $count);
     }
 
     public static function displayTabContentForItem(CommonGLPI $item, $tabnum = 1, $withtemplate = 0): bool

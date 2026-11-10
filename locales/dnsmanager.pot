@@ -657,3 +657,6 @@ msgstr ""
 
 msgid "Journal de synchro DNS"
 msgstr ""
+
+msgid "Journal synchro"
+msgstr ""

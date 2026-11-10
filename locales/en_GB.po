@@ -658,3 +658,6 @@ msgstr "Provider (general)"
 
 msgid "Journal de synchro DNS"
 msgstr "DNS sync log"
+
+msgid "Journal synchro"
+msgstr "Sync log"
