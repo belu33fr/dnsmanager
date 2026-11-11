@@ -30,7 +30,7 @@ class AccountTabs extends CommonGLPI
             return '';
         }
         return [
-            1 => __('Extension', 'dnsmanager'),
+            1 => __('Gestion', 'dnsmanager'),
             2 => __('Contacts par défaut', 'dnsmanager'),
             3 => __('Authentification', 'dnsmanager'),
         ];

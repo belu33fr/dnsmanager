@@ -27,9 +27,23 @@ if (isset($_POST['add'])) {
         }
     }
 
+    // Le message de confirmation est produit ici (avec le lien vers la fiche créée) : celui de GLPI
+    // n'apparaît pas pour cette fiche, et on évite un doublon s'il apparaissait.
+    $input['_no_message'] = 1;
     $newID = $account->add($input);
     if ($newID && !empty($credentials)) {
         Credential::saveForAccount($newID, $credentials);
+    }
+    if ($newID) {
+        Session::addMessageAfterRedirect(
+            sprintf(
+                __('Hébergeur créé : %s', 'dnsmanager'),
+                '<a href="' . htmlspecialchars(Account::getFormURLWithID($newID)) . '">'
+                    . htmlspecialchars((string)($input['name'] ?? '#' . $newID)) . '</a>'
+            ),
+            false,
+            INFO
+        );
     }
 
     if ($_SESSION['glpibackcreated'] ?? false) {

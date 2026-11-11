@@ -267,6 +267,11 @@ window.initDnsManagerForm = function initDnsManagerForm() {
             input.type        = field.type === 'password' ? 'password' : 'text';
             input.name        = 'cred_' + field.key;
             input.className   = 'form-control font-monospace';
+            // Pas de saisie automatique : le navigateur remplirait ces champs avec les identifiants
+            // mémorisés d'un autre compte (ex. ceux du compte Windows) pour un autre provider.
+            input.autocomplete = field.type === 'password' ? 'new-password' : 'off';
+            input.setAttribute('data-lpignore', 'true');
+            input.setAttribute('data-1p-ignore', 'true');
             input.placeholder = field.type === 'password'
                 ? (hasExisting ? t('unchanged') : '••••••••') : '';
             if (field.type !== 'password' && savedCredentials[field.key]) {
@@ -342,6 +347,22 @@ window.initDnsManagerForm = function initDnsManagerForm() {
     function initAuth() {
         loadProvider(data.providerType || '');
         bindTest(authRoot.querySelector('.dns-test-btn'), authRoot.querySelector('.dns-result'));
+        trackAuthChanges(authRoot.querySelector('form'));
+    }
+
+    // Suivi des modifications non enregistrées propre à cet onglet. Le suivi de GLPI mémorise l'état du
+    // formulaire au chargement, AVANT que ce script remplisse les champs (endpoint, identifiants) : GLPI
+    // croirait alors le formulaire modifié et demanderait confirmation à chaque sortie, même sans saisie.
+    // Ici l'état de référence est pris APRÈS le remplissage.
+    function trackAuthChanges(form) {
+        if (!form) return;
+        function snapshot() { return new URLSearchParams(new FormData(form)).toString(); }
+        var initial = snapshot();
+        form.addEventListener('submit', function () { initial = snapshot(); });
+        window.addEventListener('beforeunload', function (e) {
+            if (!document.body.contains(form)) return;
+            if (snapshot() !== initial) { e.preventDefault(); e.returnValue = ''; }
+        });
     }
 
     // -----------------------------------------------------------------------

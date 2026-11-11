@@ -71,7 +71,8 @@ class Synclog extends CommonDBTM
     public function getTabNameForItem(CommonGLPI $item, $withtemplate = 0)
     {
         if ($item instanceof Account && (int)$item->getID() > 0 && Session::haveRight(Account::$rightname, READ)) {
-            return self::createTabEntry(__('Journal', 'dnsmanager'));
+            // Libellé simple (comme l'onglet principal) : createTabEntry() décale le texte vers la droite
+            return __('Journal', 'dnsmanager');
         }
         return '';
     }

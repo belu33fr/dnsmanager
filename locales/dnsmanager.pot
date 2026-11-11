@@ -672,3 +672,9 @@ msgstr ""
 
 msgid "Hébergeur"
 msgstr ""
+
+msgid "Gestion"
+msgstr ""
+
+msgid "Hébergeur créé : %s"
+msgstr ""

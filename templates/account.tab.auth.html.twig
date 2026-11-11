@@ -3,7 +3,7 @@
 
 {# Onglet Authentification : nom de la clé, endpoint et identifiants (champs selon le type de provider enregistré) #}
 <div class="card-body" id="dns-auth-root">
-    <form method="post" action="{{ item.getFormURL() }}" data-track-changes="true">
+    <form method="post" action="{{ item.getFormURL() }}" autocomplete="off">
         <input type="hidden" name="id" value="{{ item.fields['id'] }}">
 
         <div class="row">
